@@ -244,8 +244,6 @@ document.querySelector('#resume').addEventListener('click', () => lock());
 document.querySelector('#pause-bag').addEventListener('click', openBag);
 document.querySelector('#pause-storage').addEventListener('click', openBackup);
 document.querySelector('#pause-docs').addEventListener('click', openDocs);
-document.querySelector('#btn-bag').addEventListener('click', openBag);
-document.querySelector('#btn-backup').addEventListener('click', openBackup);
 document.querySelector('#btn-help').addEventListener('click', () => {
   helpEl.classList.remove('hidden');
   unlockForUi();

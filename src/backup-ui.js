@@ -157,7 +157,6 @@ export function createBackup(root, hooks) {
     hooks.download(JSON.stringify(buildBundle(hooks.snapshot()), null, 2), '记忆宫殿.json', 'application/json');
     idle('这一份里有方块方位和全部笔记');
   });
-  root.querySelector('#backup-ar').addEventListener('click', () => upload());
 
   applyRoutes(readRoutes());
   return {

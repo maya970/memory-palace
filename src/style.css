@@ -161,8 +161,8 @@ button { cursor: pointer; }
 
 #hud-actions {
   position: absolute;
-  top: 16px;
   right: 16px;
+  bottom: 22px;
   display: flex;
   gap: 8px;
   pointer-events: auto;
@@ -233,6 +233,8 @@ button:disabled { opacity: 0.7; cursor: wait; }
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
 }
 
+body:has(#leave:not(.hidden)) #top-upload { display: none; }
+
 .account-banner { align-items: flex-start; }
 
 .account-banner p {
@@ -246,18 +248,6 @@ button:disabled { opacity: 0.7; cursor: wait; }
   display: flex;
   gap: 8px;
   margin-left: auto;
-}
-
-.upload-primary {
-  width: 100%;
-  margin: 0 0 14px;
-  padding: 14px 16px;
-  border: 0;
-  border-radius: 16px;
-  background: #fff;
-  color: #1d1d1f;
-  font-size: 17px;
-  font-weight: 650;
 }
 
 .account-banner button {
