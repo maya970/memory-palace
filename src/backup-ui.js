@@ -32,7 +32,7 @@ export function createBackup(root, hooks) {
       walletEl.innerHTML = '<p>还没有钱包。点下面的按钮，会在这台浏览器里同时生成 Arweave 和 Sui 两把钥匙，不连接任何插件。</p>';
       return;
     }
-    walletEl.innerHTML = `<p>Arweave<br><code>${escapeHtml(addresses.arweave)}</code></p><p>Sui<br><code>${escapeHtml(addresses.sui)}</code></p>`;
+    walletEl.innerHTML = `<p>Arweave<br><code>${escapeHtml(addresses.arweave)}</code></p><p>Sui<br><code>${escapeHtml(addresses.sui)}</code><br>超过 100KB 的正文从这把钥匙扣 Walrus 的费用，把 SUI 和 WAL 打到这个地址。</p>`;
   }
 
   async function ensureWallets() {
@@ -53,7 +53,10 @@ export function createBackup(root, hooks) {
       const result = await uploadBundle(bundle, wallets, store, status);
       const query = result.store === 'walrus' ? `blob=${result.id}` : `tx=${result.id}`;
       const href = `library.html?${query}`;
-      status(result.store === 'walrus' ? '已经写进 Sui 的 Walrus 测试网' : '已经写进 Arweave');
+      const done = result.paidAll
+        ? '已经全部写进 Walrus 主网'
+        : (result.usesWalrus ? '100KB 以内写进了 Arweave，超过的写进了 Walrus 主网' : '已经写进 Arweave');
+      status(done);
       resultEl.innerHTML = `目录页按条打开：<a href="${href}">${escapeHtml(result.id)}</a>`;
     } catch (error) {
       status(error?.message || '没有传上去');
@@ -111,7 +114,7 @@ export function createBackup(root, hooks) {
       setBusy(false);
     }
   });
-  root.querySelector('#backup-ar').addEventListener('click', () => upload('arweave'));
+  root.querySelector('#backup-ar').addEventListener('click', () => upload('auto'));
   root.querySelector('#backup-sui').addEventListener('click', () => upload('walrus'));
   root.querySelector('#backup-library').addEventListener('click', () => {
     window.location.href = 'library.html';

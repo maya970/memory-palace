@@ -2,7 +2,7 @@ import { BLOCKS } from './blocks.js';
 import { buildBundle, bundleToSave, joinWorld } from './bundle.js';
 import { excerpt, isEmptyNote, parseShelf, sanitizeHtml, sortNotes } from './notes.js';
 import { loadSave, writeSave } from './storage.js';
-import { readStored, recentUploads, resolveBundle } from './remote.js';
+import { pieceRef, pieceStore, readStored, recentUploads, resolveBundle } from './remote.js';
 
 const statusEl = document.querySelector('#library-status');
 const indexEl = document.querySelector('#library-index');
@@ -102,7 +102,7 @@ function showIndex() {
 function renderRecent() {
   const items = recentUploads();
   recentEl.innerHTML = items.length
-    ? `<p>这台浏览器上传过</p>${items.map((item) => `<button type="button" data-store="${item.store}" data-id="${escapeHtml(item.id)}">${item.store === 'walrus' ? 'Sui' : 'Arweave'} · ${escapeHtml(item.id.slice(0, 18))}…</button>`).join('')}`
+    ? `<p>这台浏览器上传过</p>${items.map((item) => `<button type="button" data-store="${item.store}" data-id="${escapeHtml(item.id)}">${item.store === 'walrus' ? 'Walrus' : 'Arweave'} · ${escapeHtml(item.id.slice(0, 18))}…</button>`).join('')}`
     : '';
 recentEl.querySelectorAll('button').forEach((button) => {
   button.addEventListener('click', async () => {
@@ -132,7 +132,9 @@ async function showBundle(bundle, source) {
 async function openNote(entry) {
   status('正在打开这一条');
   try {
-    const note = entry.html || !entry.ref ? entry : await readStored(view.store || 'arweave', entry.ref);
+    const note = entry.html || !entry.ref
+      ? entry
+      : await readStored(pieceStore(entry, view.store || 'arweave'), entry.ref);
     document.querySelector('#note-kicker').textContent = note.cue || '笔记';
     document.querySelector('#note-title').textContent = note.title || '未命名';
     document.querySelector('#note-where').textContent = `${note.order != null ? `第 ${note.order} 处 · ` : ''}${where(note)}`;
@@ -148,9 +150,12 @@ async function openNote(entry) {
 async function openRemote(store, id) {
   const manifest = await readStored(store, id);
   if (manifest?.kind !== 'memory-palace') throw new Error('这不是宫殿备份');
+  const fallback = pieceStore(manifest, store);
   const chunks = [];
-  for (const ref of (Array.isArray(manifest.world) ? manifest.world : [])) chunks.push(await readStored(store, ref));
-  await showBundle({ ...manifest, store, world: joinWorld(chunks) }, 'remote');
+  for (const piece of (Array.isArray(manifest.world) ? manifest.world : [])) {
+    chunks.push(await readStored(pieceStore(piece, fallback), pieceRef(piece)));
+  }
+  await showBundle({ ...manifest, store: fallback, world: joinWorld(chunks) }, 'remote');
 }
 
 document.querySelector('#note-back').addEventListener('click', () => {

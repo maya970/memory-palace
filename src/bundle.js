@@ -50,19 +50,21 @@ export function splitWorld(world) {
   const removed = [...(world?.removed || [])];
   const placed = [...(world?.placed || [])];
   const chunks = [];
-  let current = { removed, placed: [] };
-  const tooBig = () => byteLength(current) > FREE_BYTES;
-  if (tooBig() && !placed.length) throw new Error('拆掉的方块记录超过了免费上传的大小');
+  let current = { removed: [], placed: [] };
+  if (byteLength({ removed, placed: [] }) > FREE_BYTES) chunks.push({ removed, placed: [] });
+  else current.removed = removed;
   for (const block of placed) {
     current.placed.push(block);
-    if (!tooBig()) continue;
+    if (byteLength(current) <= FREE_BYTES) continue;
     current.placed.pop();
-    if (!current.placed.length) throw new Error('单处方块记录超过了免费上传的大小');
-    chunks.push(current);
+    if (current.removed.length || current.placed.length) chunks.push(current);
     current = { removed: [], placed: [block] };
-    if (tooBig()) throw new Error('单处方块记录超过了免费上传的大小');
+    if (byteLength(current) > FREE_BYTES) {
+      chunks.push(current);
+      current = { removed: [], placed: [] };
+    }
   }
-  chunks.push(current);
+  if (current.removed.length || current.placed.length || !chunks.length) chunks.push(current);
   return chunks;
 }
 
@@ -73,7 +75,7 @@ export function joinWorld(chunks) {
   };
 }
 
-export function noteStub(note, ref) {
+export function noteStub(note, ref, store) {
   return {
     id: note.id,
     title: note.title,
@@ -82,6 +84,7 @@ export function noteStub(note, ref) {
     shelf: note.shelf,
     updated: note.updated,
     ref,
+    store,
   };
 }
 

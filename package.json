@@ -9,6 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mysten/sui": "^2.37.0",
+    "@mysten/walrus": "^1.2.36",
     "@noble/ed25519": "^3.2.0",
     "@noble/hashes": "^2.4.0",
     "arbundles": "^0.11.2",

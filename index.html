@@ -80,7 +80,7 @@
         <section>
           <h3>路线</h3>
           <p>给书架编上顺序。按 N，光柱会移到下一处。H 打开这份说明。一切都会自动记住。</p>
-          <p>备份可以导出成一个文件，或上传到 Arweave。笔记在另一个网页里按条打开。Sui 走 Walrus 测试网。创建钱包只在这台浏览器里生成钥匙，不会弹出插件确认。</p>
+          <p>备份可以导出成一个文件。上传时，100KB 以内免费存到 Arweave，更大的正文自动存到 Walrus 主网。笔记在另一个网页里按条打开。创建钱包只在这台浏览器里生成钥匙，不会弹出插件确认。</p>
         </section>
       </div>
     </div>
@@ -92,15 +92,15 @@
         <h2>备份</h2>
         <button id="backup-close" type="button">关闭</button>
       </div>
-      <p class="inv-hint">默认上传到 Arweave。每一条笔记单独存放，100KB 以内不收费，也不需要钱包确认。方块只记坐标，打开时再画出来。Sui 使用 Walrus 测试网，过一段时间会过期。</p>
+      <p class="inv-hint">点「上传」时，100KB 以内免费存到 Arweave，超过 100KB 的正文自动存到 Walrus 主网，从 Sui 钥匙扣费。自己分成 100KB 以内再上传，仍按免费存放。点「小文件也存到 Walrus」，100KB 以内的也会收费。每一条笔记单独存放，方块只记坐标。</p>
       <div id="wallet-box" class="wallet-box"></div>
       <div class="backup-actions">
         <button id="wallet-create" type="button">创建两个链的钱包</button>
         <button id="wallet-export" class="secondary" type="button">导出钥匙</button>
         <button id="backup-export" class="secondary" type="button">导出文件</button>
         <button id="backup-import" class="secondary" type="button">导入文件</button>
-        <button id="backup-ar" type="button">上传到 Arweave</button>
-        <button id="backup-sui" class="secondary" type="button">改存到 Sui</button>
+        <button id="backup-ar" type="button">上传</button>
+        <button id="backup-sui" class="secondary" type="button">小文件也存到 Walrus</button>
         <button id="backup-library" class="secondary" type="button">打开笔记目录</button>
         <input id="backup-file" type="file" accept="application/json,.json" hidden />
       </div>

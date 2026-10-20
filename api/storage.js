@@ -1,5 +1,5 @@
 const AR = 'https://turbo-gateway.com/raw/';
-const WALRUS = 'https://aggregator.walrus-testnet.walrus.space/v1/blobs/';
+const WALRUS = 'https://aggregator.walrus-mainnet.walrus.space/v1/blobs/';
 
 function paramsOf(req) {
   const raw = req.url || '';

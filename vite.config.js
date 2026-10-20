@@ -8,12 +8,19 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
   },
-  resolve: {
-    alias: {
-      crypto: resolve('src/node-crypto.js'),
-    },
+  optimizeDeps: {
+    exclude: ['@mysten/walrus-wasm'],
   },
   plugins: [
+    {
+      name: 'arbundles-crypto-shim',
+      enforce: 'pre',
+      resolveId(source, importer) {
+        if (source !== 'crypto' && source !== 'node:crypto') return null;
+        if (!importer || !importer.replaceAll('\\', '/').includes('/arbundles/')) return null;
+        return resolve('src/node-crypto.js');
+      },
+    },
     {
       name: 'storage-api',
       configureServer(server) {
