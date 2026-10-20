@@ -244,10 +244,7 @@ document.querySelector('#resume').addEventListener('click', () => lock());
 document.querySelector('#pause-bag').addEventListener('click', openBag);
 document.querySelector('#pause-storage').addEventListener('click', openBackup);
 document.querySelector('#pause-docs').addEventListener('click', openDocs);
-document.querySelector('#btn-help').addEventListener('click', () => {
-  helpEl.classList.remove('hidden');
-  unlockForUi();
-});
+document.querySelector('#pause-help').addEventListener('click', openHelp);
 document.querySelector('#help-close').addEventListener('click', () => {
   helpEl.classList.add('hidden');
   if (started) lock();
@@ -361,9 +358,9 @@ window.addEventListener('keydown', (event) => {
     else toast('先把准星对准一格书架');
     return;
   }
-  if (event.code === 'KeyH') {
-    helpEl.classList.remove('hidden');
-    unlockForUi();
+  if (event.code === 'KeyH' && started && !editor.isOpen()) {
+    event.preventDefault();
+    openHelp();
     return;
   }
   if (event.code === 'Space') event.preventDefault();
@@ -748,6 +745,13 @@ function syncPause() {
   pauseEl.classList.toggle('hidden', !(free && !ask));
   document.querySelector('#crosshair').classList.toggle('hidden', !locked);
   syncAccountBanner();
+}
+
+function openHelp() {
+  if (!started || editor.isOpen()) return;
+  helpEl.classList.remove('hidden');
+  pauseEl.classList.add('hidden');
+  unlockForUi();
 }
 
 function openBag() {

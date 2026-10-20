@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { BLOCKS, WOOLS } from './blocks.js';
+import { BLOCKS, EXTRA_BLOCKS, WOOLS } from './blocks.js';
 
 const cache = new Map();
 
@@ -212,6 +212,119 @@ function hexToRgb(hex) {
   };
 }
 
+function drawPlanks(ctx, colors, seed) {
+  for (let band = 0; band < 4; band += 1) {
+    for (let y = band * 4; y < band * 4 + 4; y += 1) {
+      for (let x = 0; x < 16; x += 1) {
+        ctx.fillStyle = y === band * 4 ? colors[colors.length - 1] : colors[band % colors.length];
+        if (hash(x, band, seed) > 0.86) ctx.fillStyle = colors[0];
+        ctx.fillRect(x, y, 1, 1);
+      }
+    }
+  }
+}
+
+function drawLog(ctx, bark, seed, top) {
+  if (!top) {
+    for (let x = 0; x < 16; x += 1) {
+      const stripe = bark[x % bark.length];
+      for (let y = 0; y < 16; y += 1) {
+        ctx.fillStyle = hash(x, y, seed) > 0.9 ? bark[bark.length - 1] : stripe;
+        ctx.fillRect(x, y, 1, 1);
+      }
+    }
+    return;
+  }
+  const ring = bark;
+  for (let y = 0; y < 16; y += 1) {
+    for (let x = 0; x < 16; x += 1) {
+      const distance = Math.hypot(x - 7.5, y - 7.5);
+      ctx.fillStyle = distance > 7 ? bark[0] : ring[Math.floor(distance) % ring.length];
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+}
+
+function drawBricks(ctx, colors, mortar) {
+  for (let y = 0; y < 16; y += 1) {
+    for (let x = 0; x < 16; x += 1) {
+      const row = Math.floor(y / 4);
+      const offset = row % 2 ? 4 : 0;
+      if ((x + offset) % 8 === 0 || y % 4 === 0) ctx.fillStyle = mortar;
+      else ctx.fillStyle = colors[(x + row) % colors.length];
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+}
+
+function drawRubble(ctx, colors, seed) {
+  for (let cy = 0; cy < 4; cy += 1) {
+    for (let cx = 0; cx < 4; cx += 1) {
+      ctx.fillStyle = colors[Math.floor(hash(cx, cy, seed) * colors.length)];
+      ctx.fillRect(cx * 4, cy * 4, 4, 4);
+      ctx.fillStyle = '#555';
+      ctx.fillRect(cx * 4, cy * 4, 4, 1);
+      ctx.fillRect(cx * 4, cy * 4, 1, 4);
+    }
+  }
+}
+
+function drawMetal(ctx, colors, seed) {
+  noise(ctx, seed, colors);
+  ctx.fillStyle = colors[2] || colors[0];
+  ctx.fillRect(0, 0, 16, 1);
+  ctx.fillRect(0, 0, 1, 16);
+  ctx.fillStyle = colors[colors.length - 1];
+  ctx.fillRect(0, 15, 16, 1);
+  ctx.fillRect(15, 0, 1, 16);
+}
+
+function drawLeaves(ctx, colors, seed) {
+  ctx.clearRect(0, 0, 16, 16);
+  for (let y = 0; y < 16; y += 1) {
+    for (let x = 0; x < 16; x += 1) {
+      const n = hash(x, y, seed);
+      if (n > 0.84) continue;
+      ctx.fillStyle = colors[Math.min(colors.length - 1, Math.floor(n * colors.length))];
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+}
+
+function drawGlassTint(ctx, tint) {
+  ctx.clearRect(0, 0, 16, 16);
+  ctx.fillStyle = tint;
+  ctx.fillRect(0, 0, 16, 16);
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.fillRect(0, 0, 16, 1);
+  ctx.fillRect(0, 0, 1, 16);
+  ctx.fillRect(15, 0, 1, 16);
+  ctx.fillRect(0, 15, 16, 1);
+}
+
+function styledTextures(block, seed) {
+  if (block.look === 'log') {
+    const side = canvas((ctx) => drawLog(ctx, block.bark, seed, false));
+    const top = canvas((ctx) => drawLog(ctx, block.ring, seed + 3, true));
+    return pack(top, side, top);
+  }
+  const face = canvas((ctx) => {
+    if (block.look === 'planks') drawPlanks(ctx, block.colors, seed);
+    else if (block.look === 'bricks') drawBricks(ctx, block.colors, block.mortar);
+    else if (block.look === 'rubble') drawRubble(ctx, block.colors, seed);
+    else if (block.look === 'metal') drawMetal(ctx, block.colors, seed);
+    else if (block.look === 'leaves') drawLeaves(ctx, block.colors, seed);
+    else if (block.look === 'glass') drawGlassTint(ctx, block.tint);
+    else if (block.look === 'bands') {
+      for (let y = 0; y < 16; y += 1) {
+        ctx.fillStyle = block.colors[Math.floor(y / 2) % block.colors.length];
+        ctx.fillRect(0, y, 16, 1);
+      }
+    } else noise(ctx, seed, block.colors);
+  });
+  return pack(face, face, face, Boolean(block.transparent));
+}
+
 function woolTextures(hex) {
   const base = hexToRgb(hex);
   const face = canvas((ctx) => {
@@ -244,6 +357,7 @@ export function loadTextures() {
   cache.set('glass', glassTextures());
   cache.set('bedrock', bedrockTextures());
   for (const wool of WOOLS) cache.set(wool.id, woolTextures(wool.color));
+  EXTRA_BLOCKS.forEach((block, index) => cache.set(block.id, styledTextures(block, 20 + index)));
   ready = true;
   return cache;
 }

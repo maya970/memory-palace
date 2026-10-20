@@ -226,14 +226,19 @@ export function createInventory(root, hooks) {
   }
 
   function renderTemplates() {
-    const building = TEMPLATES.filter((type) => !BLOCKS[type].wool);
-    const wools = TEMPLATES.filter((type) => BLOCKS[type].wool);
+    const order = ['建筑', '木头', '矿物', '羊毛'];
+    const grouped = new Map(order.map((name) => [name, []]));
+    for (const type of TEMPLATES) {
+      const name = BLOCKS[type].group || '建筑';
+      if (!grouped.has(name)) grouped.set(name, []);
+      grouped.get(name).push(type);
+    }
     const group = (title, types) => `<h3>${title}</h3><div class="template-grid">${types.map((type) => `
       <button type="button" class="template" data-template="${type}" title="拖到物品栏，或点一下放进当前选中的格子">
         <img alt="" src="${hooks.iconFor(type)}" draggable="false" />
         <span>${BLOCKS[type].name}</span>
       </button>`).join('')}</div>`;
-    templateEl.innerHTML = group('建筑', building) + group('羊毛', wools);
+    templateEl.innerHTML = [...grouped].filter(([, types]) => types.length).map(([title, types]) => group(title, types)).join('');
   }
 
   function render() {
