@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>记忆宫殿</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="view"></div>
+
+  <div id="hud" class="hidden">
+    <div id="coords"></div>
+    <div id="compass"></div>
+    <div id="cue-banner" class="hidden"></div>
+    <div id="crosshair"></div>
+    <div id="prompt"></div>
+    <div id="hotbar-wrap">
+      <div id="hotbar-name"></div>
+      <div id="hotbar"></div>
+    </div>
+    <div id="hud-actions">
+      <button id="btn-bag" type="button">背包</button>
+      <button id="btn-backup" type="button">备份</button>
+      <button id="btn-help" type="button">帮助</button>
+    </div>
+  </div>
+
+  <div id="toasts"></div>
+
+  <div id="start" class="overlay">
+    <div class="menu-card">
+      <p class="eyebrow">一座走得进去的笔记本</p>
+      <h1>记忆宫殿</h1>
+      <p class="lede">只用方块堆房间。每一格书架是一个记忆位点，打开它，就像打开一份 Word：可以排版，也可以插入表格。</p>
+      <button id="enter" type="button" disabled>正在垒宫殿…</button>
+      <ul class="hints">
+        <li>E 打开背包，把方块拖进下面的物品栏再放置</li>
+        <li>WASD 移动，空格跳，左键拆，右键放</li>
+        <li>对准书架按 F 写笔记，N 让光柱指向下一处</li>
+        <li>笔记留在这台浏览器里，也可以导出或上传</li>
+      </ul>
+      <button id="start-help" class="textish" type="button">先看操作</button>
+    </div>
+  </div>
+
+  <div id="pause" class="overlay hidden">
+    <div class="menu-card slim">
+      <p class="eyebrow">已停下脚步</p>
+      <h2>记忆宫殿</h2>
+      <button id="resume" type="button">继续行走</button>
+      <button id="pause-bag" class="secondary" type="button">背包</button>
+      <button id="pause-backup" class="secondary" type="button">备份</button>
+      <button id="pause-help" class="secondary" type="button">帮助</button>
+    </div>
+  </div>
+
+  <div id="help" class="overlay hidden">
+    <div class="menu-card wide">
+      <div class="panel-head">
+        <h2>怎么在这座宫殿里记东西</h2>
+        <button id="help-close" type="button">关闭</button>
+      </div>
+      <div class="help-grid">
+        <section>
+          <h3>走路与堆砌</h3>
+          <p>点击画面开始行走，Esc 停下。WASD 移动，空格跳跃，Shift 潜行。潜行时会贴着边沿，不会直接走下空处。</p>
+          <p>按 E 打开背包。右边是标准方块，拖进下方物品栏，或点一下放进当前选中的格子。拆掉的方块会叠进背包。不想要的，拖到「永久销毁」。数字键 1–9 和滚轮选择手里的那一格。</p>
+        </section>
+        <section>
+          <h3>书架</h3>
+          <p>对准书架，按 F 或右键打开笔记。按住 Shift 再右键，才会把手里的方块放在书架表面上。</p>
+          <p>拆掉写过字的书架，整格连笔记一起进背包。放到新的地方，打开还是原来那本。拖进永久销毁，笔记也一起没了。笔记开着时，也可以按「收进背包」。</p>
+        </section>
+        <section>
+          <h3>这本笔记</h3>
+          <p>线索词是你脑子里的画面，标题是这格在记什么，正文像 Word 一样写。可以加粗、标题、列表、引用，也可以插入表格，或从 Excel 直接粘贴。</p>
+          <p>「导入 Word」接受 .docx。「导出 Word」会下载一份能用 Word 打开的文稿。</p>
+        </section>
+        <section>
+          <h3>路线</h3>
+          <p>给书架编上顺序。按 N，光柱会移到下一处。H 打开这份说明。一切都会自动记住。</p>
+          <p>备份可以导出成一个文件，或上传到 Arweave。笔记在另一个网页里按条打开。Sui 走 Walrus 测试网。创建钱包只在这台浏览器里生成钥匙，不会弹出插件确认。</p>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <div id="backup" class="overlay hidden">
+    <div class="menu-card wide">
+      <div class="panel-head">
+        <h2>备份</h2>
+        <button id="backup-close" type="button">关闭</button>
+      </div>
+      <p class="inv-hint">默认上传到 Arweave。每一条笔记单独存放，100KB 以内不收费，也不需要钱包确认。方块只记坐标，打开时再画出来。Sui 使用 Walrus 测试网，过一段时间会过期。</p>
+      <div id="wallet-box" class="wallet-box"></div>
+      <div class="backup-actions">
+        <button id="wallet-create" type="button">创建两个链的钱包</button>
+        <button id="wallet-export" class="secondary" type="button">导出钥匙</button>
+        <button id="backup-export" class="secondary" type="button">导出文件</button>
+        <button id="backup-import" class="secondary" type="button">导入文件</button>
+        <button id="backup-ar" type="button">上传到 Arweave</button>
+        <button id="backup-sui" class="secondary" type="button">改存到 Sui</button>
+        <button id="backup-library" class="secondary" type="button">打开笔记目录</button>
+        <input id="backup-file" type="file" accept="application/json,.json" hidden />
+      </div>
+      <p id="backup-status" class="backup-status"></p>
+      <p id="backup-result" class="backup-result"></p>
+    </div>
+  </div>
+
+  <div id="inventory" class="overlay hidden">
+    <div class="inv-sheet">
+      <section class="inv-main">
+        <div class="panel-head">
+          <h2>背包</h2>
+          <button id="inv-close" type="button">关闭</button>
+        </div>
+        <p class="inv-hint">右边的方块拖进物品栏再拿去放。拆掉的方块会叠进背包，写过字的书架会标着「记」。不想要的拖进永久销毁，那里清掉就找不回来了。</p>
+        <div id="backpack" class="inv-grid"></div>
+        <button id="trash-slot" class="trash-slot" type="button" data-area="trash">永久销毁</button>
+        <p class="inv-label">物品栏</p>
+        <div id="inv-hotbar" class="inv-grid"></div>
+      </section>
+      <aside class="inv-templates">
+        <h2>标准方块</h2>
+        <p class="inv-hint">从这里拖，不会被拿走。</p>
+        <div id="template-list"></div>
+      </aside>
+    </div>
+    <div id="drag-ghost" class="hidden"></div>
+  </div>
+
+  <div id="editor" class="overlay hidden">
+    <div class="book">
+      <header class="book-top">
+        <div>
+          <p class="eyebrow">书架上的笔记</p>
+          <p id="book-loc"></p>
+        </div>
+        <button id="book-close" type="button">关闭</button>
+      </header>
+      <div class="locus-row">
+        <label>顺序
+          <input id="note-order" type="number" min="1" max="999" placeholder="1" />
+        </label>
+        <label class="grow">线索词
+          <input id="note-cue" maxlength="32" placeholder="一个忘不了的画面" />
+        </label>
+        <label class="grow">标题
+          <input id="note-title" maxlength="40" placeholder="这格书架在记什么" />
+        </label>
+      </div>
+      <div id="toolbar">
+        <button data-cmd="undo" type="button">撤销</button>
+        <button data-cmd="redo" type="button">重做</button>
+        <span class="sep"></span>
+        <button data-cmd="p" type="button">正文</button>
+        <button data-cmd="h1" type="button">大标题</button>
+        <button data-cmd="h2" type="button">小标题</button>
+        <button data-cmd="quote" type="button">引用</button>
+        <span class="sep"></span>
+        <button data-cmd="bold" type="button"><b>粗</b></button>
+        <button data-cmd="italic" type="button"><i>斜</i></button>
+        <button data-cmd="underline" type="button"><u>下</u></button>
+        <button data-cmd="strike" type="button"><s>删</s></button>
+        <label class="color-chip" title="文字颜色">字
+          <input id="fore-color" type="color" value="#2b241c" />
+        </label>
+        <label class="color-chip" title="高亮">亮
+          <input id="back-color" type="color" value="#ffe08a" />
+        </label>
+        <span class="sep"></span>
+        <button data-cmd="left" type="button">居左</button>
+        <button data-cmd="center" type="button">居中</button>
+        <button data-cmd="right" type="button">居右</button>
+        <button data-cmd="ul" type="button">列表</button>
+        <button data-cmd="ol" type="button">编号</button>
+        <span class="sep"></span>
+        <button data-cmd="table" type="button">表格</button>
+        <button data-cmd="template" type="button">词表</button>
+        <button data-cmd="hr" type="button">分隔</button>
+        <button data-cmd="clear" type="button">清格式</button>
+        <span class="sep"></span>
+        <button data-cmd="import" type="button">导入 Word</button>
+        <button data-cmd="export" type="button">导出 Word</button>
+        <input id="docx-input" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden />
+      </div>
+      <div id="table-pop" class="table-pop hidden">
+        <label>行 <input id="table-rows" type="number" min="1" max="20" value="3" /></label>
+        <label>列 <input id="table-cols" type="number" min="1" max="8" value="3" /></label>
+        <label class="check"><input id="table-header" type="checkbox" checked /> 首行作为表头</label>
+        <button id="table-insert" type="button">插入</button>
+      </div>
+      <div id="table-tools" class="table-tools hidden">
+        <button data-table="add-row" type="button">下方加行</button>
+        <button data-table="add-col" type="button">右侧加列</button>
+        <button data-table="del-row" type="button">删除行</button>
+        <button data-table="del-col" type="button">删除列</button>
+        <button data-table="del" type="button">删除表格</button>
+      </div>
+      <div id="page" class="page" contenteditable="true" spellcheck="false"></div>
+      <footer class="book-foot">
+        <span id="book-status">写下来就会记住</span>
+        <span id="book-meta"></span>
+        <button id="note-detach" class="textish" type="button">收进背包</button>
+      </footer>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>笔记目录 · 记忆宫殿</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body class="library">
+  <main class="library-sheet">
+    <header class="library-top">
+      <div>
+        <p class="eyebrow">一条一条打开</p>
+        <h1>笔记目录</h1>
+      </div>
+      <a class="library-back" href="/">回到宫殿</a>
+    </header>
+    <p id="library-status" class="library-status"></p>
+    <section id="library-index">
+      <div class="library-tools">
+        <input id="remote-id" type="text" placeholder="贴上 Arweave 或 Sui 的编号" />
+        <button id="open-remote" type="button">打开编号</button>
+        <button id="open-file" class="secondary" type="button">导入文件</button>
+        <button id="use-local" class="secondary" type="button">这台浏览器</button>
+        <input id="library-file" type="file" accept="application/json,.json" hidden />
+      </div>
+      <div id="recent"></div>
+      <section class="map-card">
+        <h2>方块</h2>
+        <canvas id="block-map" width="760" height="280"></canvas>
+        <p id="block-summary"></p>
+      </section>
+      <section>
+        <h2>笔记</h2>
+        <div id="note-list"></div>
+      </section>
+    </section>
+    <article id="library-note" class="hidden">
+      <button id="note-back" class="secondary" type="button">回到目录</button>
+      <p id="note-kicker" class="eyebrow"></p>
+      <h2 id="note-title"></h2>
+      <p id="note-where"></p>
+      <div id="note-body" class="page"></div>
+    </article>
+    <p class="library-foot"><button id="adopt" class="hidden" type="button">用这份备份覆盖这座宫殿</button></p>
+  </main>
+  <script type="module" src="/src/library.js"></script>
+</body>
+</html>
