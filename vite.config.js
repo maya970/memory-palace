@@ -16,9 +16,12 @@ export default defineConfig({
       name: 'arbundles-crypto-shim',
       enforce: 'pre',
       resolveId(source, importer) {
-        if (source !== 'crypto' && source !== 'node:crypto') return null;
-        if (!importer || !importer.replaceAll('\\', '/').includes('/arbundles/')) return null;
-        return resolve('src/node-crypto.js');
+        if (source === 'events' || source === 'node:events') return resolve('src/node-events.cjs');
+        const fromArbundles = importer && importer.replaceAll('\\', '/').includes('/arbundles/');
+        if (!fromArbundles) return null;
+        if (source === 'crypto' || source === 'node:crypto') return resolve('src/node-crypto.js');
+        if (source === 'stream' || source === 'node:stream') return resolve('src/node-stream.js');
+        return null;
       },
     },
     {
