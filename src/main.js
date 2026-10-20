@@ -168,9 +168,10 @@ const editor = createEditor(document.querySelector('#editor'), {
 function syncAccountBanner() {
   const pending = accountNeedsExport();
   const show = pending || started;
-  document.body.classList.toggle('account-pending', show);
+  document.body.classList.toggle('account-pending', pending);
   const banner = document.querySelector('#account-banner');
   banner.classList.toggle('hidden', !show);
+  banner.classList.toggle('compact', show && !pending);
   banner.querySelector('p').classList.toggle('hidden', !pending);
   document.querySelector('#account-export').classList.toggle('hidden', !pending);
 }

@@ -217,6 +217,22 @@ button:disabled { opacity: 0.7; cursor: wait; }
 
 .account-banner.hidden { display: none; }
 
+.account-banner.compact {
+  left: auto;
+  right: 18px;
+  top: 14px;
+  width: auto;
+  padding: 0;
+  background: transparent;
+  backdrop-filter: none;
+}
+
+.account-banner.compact .top-actions { margin-left: 0; }
+
+.account-banner.compact button {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
 .account-banner { align-items: flex-start; }
 
 .account-banner p {
