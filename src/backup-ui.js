@@ -1,5 +1,5 @@
 import { buildBundle } from './bundle.js';
-import { recentUploads, resolveBundle, uploadBundle } from './remote.js';
+import { recentUploads, uploadBundle } from './remote.js';
 import { accountNeedsExport, createWallets, loadWallets, markAccountExported, walletAddresses, walletFile } from './wallets.js';
 
 const ROUTE_KEY = 'memory-palace-routes';
@@ -18,7 +18,6 @@ export function createBackup(root, hooks) {
   const statusEl = root.querySelector('[data-status]');
   const resultEl = root.querySelector('#backup-result');
   const walletEl = root.querySelector('#wallet-box');
-  const fileInput = root.querySelector('#backup-file');
   const meter = root.querySelector('.meter');
   const fill = root.querySelector('.meter-fill');
   let busy = false;
@@ -87,24 +86,35 @@ export function createBackup(root, hooks) {
     return loadWallets();
   }
 
-  async function upload() {
-    if (busy) return;
+  async function upload(report) {
+    if (busy) return false;
     setBusy(true);
     resultEl.textContent = '';
     const routes = readRoutes();
-    paint(null, '正在上传');
+    const tell = (label) => {
+      paint(null, label);
+      report?.(label);
+    };
+    tell('正在上传');
     try {
       const wallets = await ensureWallets();
       const bundle = buildBundle(hooks.snapshot());
-      const result = await uploadBundle(bundle, wallets, routes, (label) => paint(null, label));
+      const result = await uploadBundle(bundle, wallets, routes, tell);
       const query = result.store === 'walrus' ? `blob=${result.id}` : `tx=${result.id}`;
-      idle(`100KB 以内写进 ${storeName(routes.small)}，超过的写进 ${storeName(routes.large)}`);
+      const done = `100KB 以内写进 ${storeName(routes.small)}，超过的写进 ${storeName(routes.large)}`;
+      idle(done);
+      report?.(done);
       resultEl.innerHTML = `<a href="library.html?${query}">${escapeHtml(result.id)}</a>`;
+      return true;
     } catch (error) {
-      idle(error?.message || '没有传上去');
+      const message = error?.message || '没有传上去';
+      idle(message);
+      report?.(message);
+      return false;
     } finally {
       setBusy(false);
       renderWallets();
+      hooks.onAccount?.();
     }
   }
 
@@ -147,21 +157,6 @@ export function createBackup(root, hooks) {
     hooks.download(JSON.stringify(buildBundle(hooks.snapshot()), null, 2), '记忆宫殿.json', 'application/json');
     idle('这一份里有方块方位和全部笔记');
   });
-  root.querySelector('#backup-import').addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', async () => {
-    const file = fileInput.files?.[0];
-    fileInput.value = '';
-    if (!file || busy) return;
-    setBusy(true);
-    paint(0.15, '正在读取这一份文件');
-    try {
-      const bundle = await resolveBundle(JSON.parse(await file.text()), ({ ratio, label }) => paint(0.15 + ratio * 0.85, label));
-      hooks.onImport(bundle);
-    } catch (error) {
-      idle(error?.message || '这个文件打不开');
-      setBusy(false);
-    }
-  });
   root.querySelector('#backup-ar').addEventListener('click', () => upload());
 
   applyRoutes(readRoutes());
@@ -179,5 +174,6 @@ export function createBackup(root, hooks) {
       root.classList.add('hidden');
     },
     refresh: renderWallets,
+    upload,
   };
 }

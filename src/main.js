@@ -31,7 +31,6 @@ const view = document.querySelector('#view');
 const hud = document.querySelector('#hud');
 const coordsEl = document.querySelector('#coords');
 const compassEl = document.querySelector('#compass');
-const bannerEl = document.querySelector('#cue-banner');
 const promptEl = document.querySelector('#prompt');
 const hotbarEl = document.querySelector('#hotbar');
 const hotbarNameEl = document.querySelector('#hotbar-name');
@@ -41,6 +40,7 @@ const introEl = document.querySelector('#intro');
 const pauseEl = document.querySelector('#pause');
 const helpEl = document.querySelector('#help');
 const docsEl = document.querySelector('#docs');
+const leaveEl = document.querySelector('#leave');
 
 const input = {
   forward: false,
@@ -118,9 +118,11 @@ const inventory = createInventory(document.querySelector('#inventory'), {
 });
 inventory.load(save);
 
-let routeId = save?.routeId || orderedShelved()[0]?.id || null;
-let routeConsumed = false;
+let routeId = save?.routeId || null;
 let started = false;
+let leaveSettled = false;
+let appUnlock = false;
+let ignoreEscUntil = 0;
 let aimed = null;
 let leftDown = false;
 let rightDown = false;
@@ -145,20 +147,6 @@ const ghost = new THREE.Mesh(
 ghost.visible = false;
 scene.add(ghost);
 
-const beacon = new THREE.Mesh(
-  new THREE.CylinderGeometry(0.18, 0.18, 28, 10),
-  new THREE.MeshBasicMaterial({ color: 0xffd56a, transparent: true, opacity: 0.35, depthWrite: false }),
-);
-beacon.visible = false;
-scene.add(beacon);
-const ring = new THREE.Mesh(
-  new THREE.RingGeometry(0.55, 0.78, 20),
-  new THREE.MeshBasicMaterial({ color: 0xffd56a, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false }),
-);
-ring.rotation.x = -Math.PI / 2;
-ring.visible = false;
-scene.add(ring);
-
 const labelPool = Array.from({ length: 8 }, () => {
   const div = document.createElement('div');
   div.className = 'nametag';
@@ -179,8 +167,12 @@ const editor = createEditor(document.querySelector('#editor'), {
 
 function syncAccountBanner() {
   const pending = accountNeedsExport();
-  document.body.classList.toggle('account-pending', pending);
-  document.querySelector('#account-banner').classList.toggle('hidden', !pending);
+  const show = pending || started;
+  document.body.classList.toggle('account-pending', show);
+  const banner = document.querySelector('#account-banner');
+  banner.classList.toggle('hidden', !show);
+  banner.querySelector('p').classList.toggle('hidden', !pending);
+  document.querySelector('#account-export').classList.toggle('hidden', !pending);
 }
 
 const backup = createBackup(document.querySelector('#backup'), {
@@ -230,7 +222,22 @@ document.querySelector('#intro-go').addEventListener('click', () => {
   introEl.classList.add('hidden');
   hud.classList.remove('hidden');
   started = true;
+  syncAccountBanner();
   lock();
+});
+document.querySelector('#top-upload').addEventListener('click', () => backup.upload());
+document.querySelector('#leave-skip').addEventListener('click', dismissLeave);
+document.querySelector('#leave-upload').addEventListener('click', async () => {
+  const status = document.querySelector('#leave [data-status]');
+  const meter = document.querySelector('#leave .meter');
+  const fill = document.querySelector('#leave .meter-fill');
+  meter.hidden = false;
+  fill.classList.add('indeterminate');
+  status.textContent = '正在上传';
+  await backup.upload((label) => {
+    status.textContent = label;
+  });
+  meter.hidden = true;
 });
 document.querySelector('#resume').addEventListener('click', () => lock());
 document.querySelector('#pause-bag').addEventListener('click', openBag);
@@ -240,7 +247,7 @@ document.querySelector('#btn-bag').addEventListener('click', openBag);
 document.querySelector('#btn-backup').addEventListener('click', openBackup);
 document.querySelector('#btn-help').addEventListener('click', () => {
   helpEl.classList.remove('hidden');
-  document.exitPointerLock();
+  unlockForUi();
 });
 document.querySelector('#help-close').addEventListener('click', () => {
   helpEl.classList.add('hidden');
@@ -293,6 +300,11 @@ window.addEventListener('wheel', (event) => {
 window.addEventListener('keydown', (event) => {
   if (event.isComposing) return;
   if (event.code === 'Escape') {
+    if (performance.now() < ignoreEscUntil) return;
+    if (!leaveEl.classList.contains('hidden')) {
+      dismissLeave();
+      return;
+    }
     if (editor.isOpen()) {
       event.preventDefault();
       closeEditor();
@@ -311,7 +323,7 @@ window.addEventListener('keydown', (event) => {
     }
     return;
   }
-  if (event.code === 'KeyE' && !event.repeat && started && !editor.isOpen() && !backup.isOpen() && !docs.isOpen() && helpEl.classList.contains('hidden') && introEl.classList.contains('hidden')) {
+  if (event.code === 'KeyE' && !event.repeat && started && !editor.isOpen() && !backup.isOpen() && !docs.isOpen() && leaveEl.classList.contains('hidden') && helpEl.classList.contains('hidden') && introEl.classList.contains('hidden')) {
     event.preventDefault();
     if (inventory.isOpen()) closeBag();
     else openBag();
@@ -350,13 +362,9 @@ window.addEventListener('keydown', (event) => {
     else toast('先把准星对准一格书架');
     return;
   }
-  if (event.code === 'KeyN' && started) {
-    cycleRoute();
-    return;
-  }
   if (event.code === 'KeyH') {
     helpEl.classList.remove('hidden');
-    document.exitPointerLock();
+    unlockForUi();
     return;
   }
   if (event.code === 'Space') event.preventDefault();
@@ -406,7 +414,6 @@ function frame(now) {
   }
 
   updateAim(locked);
-  updateBeacon(now);
   updateLabels(locked);
   updateHud();
   hud.classList.toggle('writing', editor.isOpen());
@@ -537,7 +544,8 @@ function openShelf(x, y, z) {
     notes.push(note);
   }
   sfx.open();
-  document.exitPointerLock();
+  unlockForUi();
+  pauseEl.classList.add('hidden');
   editor.open(note, `${regionName(x, z)} · ${x}, ${y}, ${z}`);
 }
 
@@ -545,10 +553,6 @@ function closeEditor() {
   if (!editor.isOpen()) return;
   const note = editor.close();
   if (isEmptyNote(note)) notes = notes.filter((item) => item.id !== note.id);
-  else if (routeId === note.id && !routeConsumed) {
-    routeConsumed = true;
-    advanceRoute();
-  }
   saveSoon();
   lock();
 }
@@ -597,52 +601,6 @@ function settleCarriedNotes() {
   }
 }
 
-function orderedShelved() {
-  return sortNotes(notes.filter((note) => note.shelf && !isEmptyNote(note)));
-}
-
-function advanceRoute() {
-  const list = orderedShelved();
-  const index = list.findIndex((note) => note.id === routeId);
-  const next = list[index + 1];
-  if (!next) {
-    routeId = null;
-    toast('这条路线走完了');
-    return;
-  }
-  routeId = next.id;
-  routeConsumed = false;
-  toast(`下一处：${next.cue || next.title}`);
-}
-
-function cycleRoute() {
-  const list = orderedShelved();
-  if (!list.length) {
-    toast('还没有写好的书架');
-    return;
-  }
-  let index = list.findIndex((note) => note.id === routeId);
-  index = (index + 1) % list.length;
-  routeId = list[index].id;
-  routeConsumed = false;
-  toast(`光柱 · ${list[index].cue || list[index].title}`);
-  saveSoon();
-}
-
-function updateBeacon(now) {
-  const note = notes.find((item) => item.id === routeId);
-  const pos = note ? parseShelf(note.shelf) : null;
-  const alive = pos && world.get(pos.x, pos.y, pos.z) === 'bookshelf';
-  beacon.visible = Boolean(alive);
-  ring.visible = Boolean(alive);
-  bannerEl.classList.toggle('hidden', !alive || !started);
-  if (!alive) return;
-  beacon.position.set(pos.x + 0.5, pos.y + 15, pos.z + 0.5);
-  beacon.material.opacity = 0.26 + Math.sin(now * 0.004) * 0.1;
-  ring.position.set(pos.x + 0.5, pos.y + 1.02, pos.z + 0.5);
-  if (started) bannerEl.textContent = `光柱 · ${note.order != null ? `${note.order} · ` : ''}${note.cue || note.title || '未命名'}`;
-}
-
 function updateLabels(locked) {
   const found = [];
   if (started && locked) {
@@ -669,7 +627,6 @@ function updateLabels(locked) {
     }
     label.obj.visible = true;
     label.obj.position.set(item.pos.x + 0.5, item.pos.y + 1.45, item.pos.z + 0.5);
-    label.div.classList.toggle('route', item.note.id === routeId);
     label.div.querySelector('b').textContent = item.note.cue || '书架';
     label.div.querySelector('span').textContent = item.note.title || '';
   });
@@ -753,8 +710,25 @@ function lock() {
   }
 }
 
-function overlayOpen() {
+function surfaceBlocked() {
   return editor.isOpen() || inventory.isOpen() || backup.isOpen() || docs.isOpen() || !helpEl.classList.contains('hidden') || !startEl.classList.contains('hidden') || !introEl.classList.contains('hidden');
+}
+
+function overlayOpen() {
+  return surfaceBlocked() || !leaveEl.classList.contains('hidden');
+}
+
+function unlockForUi() {
+  appUnlock = true;
+  leaveSettled = true;
+  leaveEl.classList.add('hidden');
+  document.exitPointerLock();
+}
+
+function dismissLeave() {
+  leaveSettled = true;
+  leaveEl.classList.add('hidden');
+  syncPause();
 }
 
 function syncPause() {
@@ -762,17 +736,25 @@ function syncPause() {
   if (!locked) {
     leftDown = false;
     rightDown = false;
+  } else {
+    leaveSettled = false;
+    appUnlock = false;
+    leaveEl.classList.add('hidden');
   }
   document.body.classList.toggle('locked', locked);
-  const show = started && !locked && !editor.isOpen() && !inventory.isOpen() && !backup.isOpen() && !docs.isOpen() && helpEl.classList.contains('hidden') && introEl.classList.contains('hidden');
-  pauseEl.classList.toggle('hidden', !show);
+  const free = started && !locked && !surfaceBlocked();
+  const ask = free && !leaveSettled && !appUnlock;
+  if (ask) ignoreEscUntil = performance.now() + 500;
+  leaveEl.classList.toggle('hidden', !ask);
+  pauseEl.classList.toggle('hidden', !(free && !ask));
   document.querySelector('#crosshair').classList.toggle('hidden', !locked);
+  syncAccountBanner();
 }
 
 function openBag() {
   if (!started || editor.isOpen() || backup.isOpen() || docs.isOpen() || !helpEl.classList.contains('hidden') || !introEl.classList.contains('hidden')) return;
   inventory.open();
-  document.exitPointerLock();
+  unlockForUi();
   pauseEl.classList.add('hidden');
 }
 
@@ -790,7 +772,7 @@ function restoreAndEnter(bundle) {
 
 function openDocs() {
   if (!started || editor.isOpen()) return;
-  document.exitPointerLock();
+  unlockForUi();
   pauseEl.classList.add('hidden');
   backup.close();
   docs.open();
@@ -803,7 +785,7 @@ function closeDocs() {
 
 function openBackup() {
   if (!started || editor.isOpen()) return;
-  document.exitPointerLock();
+  unlockForUi();
   pauseEl.classList.add('hidden');
   docs.close();
   backup.open();
