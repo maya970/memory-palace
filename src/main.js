@@ -226,7 +226,10 @@ document.querySelector('#intro-go').addEventListener('click', () => {
   syncAccountBanner();
   lock();
 });
-document.querySelector('#top-upload').addEventListener('click', () => backup.upload());
+document.querySelector('#top-upload').addEventListener('click', async () => {
+  const message = await backup.upload();
+  if (message) toast(message, 12000);
+});
 document.querySelector('#leave-skip').addEventListener('click', dismissLeave);
 document.querySelector('#leave-upload').addEventListener('click', async () => {
   const status = document.querySelector('#leave [data-status]');
@@ -235,10 +238,16 @@ document.querySelector('#leave-upload').addEventListener('click', async () => {
   meter.hidden = false;
   fill.classList.add('indeterminate');
   status.textContent = '正在上传';
-  await backup.upload((label) => {
+  const message = await backup.upload((label) => {
     status.textContent = label;
   });
   meter.hidden = true;
+  if (!message) return;
+  leaveSettled = true;
+  leaveEl.classList.add('hidden');
+  toast(message, 12000);
+  lock();
+  if (document.pointerLockElement !== renderer.domElement) syncPause();
 });
 document.querySelector('#resume').addEventListener('click', () => lock());
 document.querySelector('#pause-bag').addEventListener('click', openBag);
@@ -688,13 +697,13 @@ function escapeText(value) {
   return String(value).replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch]));
 }
 
-function toast(message) {
+function toast(message, stay = 3200) {
   const el = document.createElement('div');
   el.className = 'toast';
   el.textContent = message;
   toastBox.append(el);
   while (toastBox.children.length > 3) toastBox.firstChild.remove();
-  window.setTimeout(() => el.remove(), 3200);
+  window.setTimeout(() => el.remove(), stay);
 }
 
 function lock() {

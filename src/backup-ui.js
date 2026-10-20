@@ -10,10 +10,6 @@ function escapeHtml(value) {
   }[ch]));
 }
 
-function storeName(store) {
-  return store === 'walrus' ? 'Walrus' : 'Arweave';
-}
-
 export function createBackup(root, hooks) {
   const statusEl = root.querySelector('[data-status]');
   const resultEl = root.querySelector('#backup-result');
@@ -87,7 +83,7 @@ export function createBackup(root, hooks) {
   }
 
   async function upload(report) {
-    if (busy) return false;
+    if (busy) return '';
     setBusy(true);
     resultEl.textContent = '';
     const routes = readRoutes();
@@ -101,16 +97,21 @@ export function createBackup(root, hooks) {
       const bundle = buildBundle(hooks.snapshot());
       const result = await uploadBundle(bundle, wallets, routes, tell);
       const query = result.store === 'walrus' ? `blob=${result.id}` : `tx=${result.id}`;
-      const done = `100KB 以内写进 ${storeName(routes.small)}，超过的写进 ${storeName(routes.large)}`;
+      const placed = bundle.world.placed?.length || 0;
+      const removed = bundle.world.removed?.length || 0;
+      const usesArweave = routes.small === 'arweave' || routes.large === 'arweave';
+      const done = usesArweave
+        ? `Arweave 上传有延时，可以使用 Walrus，或者导出本地文件。这次新放 ${placed} 块，拆掉 ${removed} 处。`
+        : `已经写进 Walrus。这次新放 ${placed} 块，拆掉 ${removed} 处。`;
       idle(done);
       report?.(done);
       resultEl.innerHTML = `<a href="library.html?${query}">${escapeHtml(result.id)}</a>`;
-      return true;
+      return done;
     } catch (error) {
       const message = error?.message || '没有传上去';
       idle(message);
       report?.(message);
-      return false;
+      return '';
     } finally {
       setBusy(false);
       renderWallets();
