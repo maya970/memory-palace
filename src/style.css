@@ -198,6 +198,63 @@ button { cursor: pointer; }
 
 button:disabled { opacity: 0.7; cursor: wait; }
 
+.account-banner {
+  position: fixed;
+  z-index: 40;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 18px;
+  background: rgba(28, 28, 30, 0.94);
+  color: #f5f5f7;
+  backdrop-filter: blur(18px);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.account-banner.hidden { display: none; }
+
+.account-banner p { margin: 0; font-size: 14px; }
+
+.account-banner button {
+  border: 0;
+  border-radius: 980px;
+  background: #fff;
+  color: #1d1d1f;
+  padding: 8px 14px;
+  white-space: nowrap;
+}
+
+body.account-pending #coords,
+body.account-pending #compass { top: 58px; }
+
+.account-remind {
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #f5f5f7;
+  font-size: 14px;
+}
+
+.account-remind.hidden { display: none; }
+
+.route-list { display: grid; gap: 8px; margin-bottom: 14px; }
+
+.route-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.route-switch b { font-weight: 600; }
+
+.route-switch .segment { margin: 0; min-width: 210px; }
+
 .overlay {
   position: fixed;
   inset: 0;
@@ -503,6 +560,271 @@ button:disabled { opacity: 0.7; cursor: wait; }
   .inv-templates { width: auto; }
   .inv-grid { grid-template-columns: repeat(9, minmax(0, 1fr)); }
 }
+
+.apple-shade {
+  background: rgba(8, 8, 12, 0.42);
+  backdrop-filter: blur(18px) saturate(1.2);
+}
+
+.apple-sheet,
+.apple-menu {
+  width: min(380px, 100%);
+  padding: 22px 18px 18px;
+  border-radius: 28px;
+  color: #f5f5f7;
+  background: rgba(32, 32, 36, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(40px) saturate(1.5);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.apple-sheet.wide { width: min(880px, 100%); max-height: calc(100vh - 48px); overflow: auto; }
+
+.apple-kicker {
+  margin: 0 0 6px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+
+.apple-sheet h1,
+.apple-menu .apple-kicker { letter-spacing: 0; }
+
+.apple-sheet h1 {
+  margin: 0 0 16px;
+  font-size: 34px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+
+.apple-sheet h2,
+.apple-sheet h3 { margin: 0; font-weight: 620; letter-spacing: -0.02em; }
+
+.apple-lead {
+  margin: 0 0 14px;
+  color: rgba(245, 245, 247, 0.78);
+  line-height: 1.5;
+}
+
+.apple-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.apple-head button,
+.apple-sheet > button,
+.doc-read > button {
+  border: 0;
+  border-radius: 980px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #f5f5f7;
+  padding: 8px 14px;
+}
+
+.apple-list,
+.apple-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.apple-list button,
+.apple-menu button {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f5f5f7;
+  text-align: left;
+  font-size: 17px;
+}
+
+.apple-list button small {
+  display: block;
+  margin-top: 3px;
+  color: rgba(245, 245, 247, 0.5);
+  font-size: 12px;
+}
+
+.apple-menu button {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.apple-menu kbd,
+.apple-list kbd {
+  color: rgba(245, 245, 247, 0.42);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.apple-list button:disabled { opacity: 0.45; }
+
+.address-stack {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.address-stack div,
+.address-stack {
+  min-width: 0;
+}
+
+.address-stack span {
+  display: block;
+  color: rgba(245, 245, 247, 0.5);
+  font-size: 12px;
+}
+
+.address-stack code,
+.apple-status a {
+  display: block;
+  color: #f5f5f7;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  word-break: break-all;
+}
+
+.apple-status {
+  min-height: 1.3em;
+  margin: 10px 0 0;
+  color: rgba(245, 245, 247, 0.72);
+  font-size: 13px;
+}
+
+.meter {
+  height: 4px;
+  margin-top: 14px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.meter-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 99px;
+  background: #fff;
+  transition: width 0.25s ease;
+}
+
+.meter-fill.indeterminate {
+  width: 36%;
+  animation: meter-slide 1s ease-in-out infinite;
+}
+
+@keyframes meter-slide {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(320%); }
+}
+
+.segment {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 4px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.segment button {
+  flex: 1;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: rgba(245, 245, 247, 0.7);
+  padding: 8px 10px;
+}
+
+.segment button.on { background: rgba(255, 255, 255, 0.16); color: #fff; }
+
+.doc-table-wrap { overflow: auto; max-height: min(52vh, 460px); }
+
+.doc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.doc-tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.doc-tools.hidden { display: none; }
+
+.doc-tools input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f5f5f7;
+  padding: 10px 12px;
+}
+
+#docs-count {
+  margin: 0;
+  color: rgba(245, 245, 247, 0.55);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.doc-table th {
+  position: sticky;
+  top: 0;
+  text-align: left;
+  color: rgba(245, 245, 247, 0.45);
+  font-weight: 500;
+  background: rgba(32, 32, 36, 0.92);
+  padding: 0;
+}
+
+.doc-table th button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 8px 10px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.doc-table th button.on { color: #fff; }
+
+.doc-table td {
+  padding: 11px 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.doc-table tr[data-index] { cursor: pointer; }
+.doc-table tr[data-index]:hover td { background: rgba(255, 255, 255, 0.05); }
+
+.doc-read { margin-top: 8px; }
+.doc-body {
+  margin-top: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f5f5f7;
+  line-height: 1.6;
+}
+.doc-body table { width: 100%; border-collapse: collapse; }
+.doc-body td, .doc-body th { border: 1px solid rgba(255, 255, 255, 0.16); padding: 6px 8px; }
 
 .wallet-box code {
   display: block;

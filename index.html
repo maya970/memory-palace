@@ -7,6 +7,10 @@
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
+  <div id="account-banner" class="account-banner hidden">
+    <p>请导出账户。账户只在这台浏览器里，导出之前这条会留在上方。</p>
+    <button id="account-export" type="button">导出账户</button>
+  </div>
   <div id="view"></div>
 
   <div id="hud" class="hidden">
@@ -21,38 +25,48 @@
     </div>
     <div id="hud-actions">
       <button id="btn-bag" type="button">背包</button>
-      <button id="btn-backup" type="button">备份</button>
+      <button id="btn-backup" type="button">存储</button>
       <button id="btn-help" type="button">帮助</button>
     </div>
   </div>
 
   <div id="toasts"></div>
 
-  <div id="start" class="overlay">
-    <div class="menu-card">
-      <p class="eyebrow">一座走得进去的笔记本</p>
-      <h1>记忆宫殿</h1>
-      <p class="lede">只用方块堆房间。每一格书架是一个记忆位点，打开它，就像打开一份 Word：可以排版，也可以插入表格。</p>
-      <button id="enter" type="button" disabled>正在垒宫殿…</button>
-      <ul class="hints">
-        <li>E 打开背包，把方块拖进下面的物品栏再放置</li>
-        <li>WASD 移动，空格跳，左键拆，右键放</li>
-        <li>对准书架按 F 写笔记，N 让光柱指向下一处</li>
-        <li>笔记留在这台浏览器里，也可以导出或上传</li>
-      </ul>
-      <button id="start-help" class="textish" type="button">先看操作</button>
-    </div>
+  <div id="start" class="overlay apple-shade">
+    <section class="apple-sheet">
+      <p class="apple-kicker">记忆宫殿笔记</p>
+      <h1>先登录</h1>
+      <div id="gate-wallet" class="address-stack"></div>
+      <div class="apple-list">
+        <button id="gate-local" type="button" disabled>本地笔记<small>正在准备这座宫殿</small></button>
+        <button id="gate-create" type="button">创建账户<small>生成后请立刻导出账户</small></button>
+        <button id="gate-wallet-pick" type="button">导入账户<small>恢复链上最新索引、方块方位和每一篇笔记</small></button>
+        <button id="gate-file-pick" type="button">导入文件<small>一份文件，方块方位和笔记在一起</small></button>
+      </div>
+      <input id="gate-wallet-file" type="file" accept="application/json,.json" hidden />
+      <input id="gate-palace-file" type="file" accept="application/json,.json" hidden />
+      <div class="meter" hidden><div class="meter-fill"></div></div>
+      <p class="apple-status" data-status></p>
+    </section>
   </div>
 
-  <div id="pause" class="overlay hidden">
-    <div class="menu-card slim">
-      <p class="eyebrow">已停下脚步</p>
-      <h2>记忆宫殿</h2>
-      <button id="resume" type="button">继续行走</button>
-      <button id="pause-bag" class="secondary" type="button">背包</button>
-      <button id="pause-backup" class="secondary" type="button">备份</button>
-      <button id="pause-help" class="secondary" type="button">帮助</button>
-    </div>
+  <div id="intro" class="overlay apple-shade hidden">
+    <section class="apple-sheet">
+      <p class="apple-kicker">记忆宫殿笔记</p>
+      <h1>书架是位点</h1>
+      <p class="apple-lead">打开一格，就是一篇文稿。写下来的东西留在这份笔记里。</p>
+      <button id="intro-go" type="button">走进去</button>
+    </section>
+  </div>
+
+  <div id="pause" class="overlay apple-shade hidden">
+    <nav class="apple-menu" aria-label="菜单">
+      <p class="apple-kicker">记忆宫殿笔记</p>
+      <button id="resume" type="button"><span>继续</span></button>
+      <button id="pause-storage" type="button"><span>个人存储信息</span><kbd>B</kbd></button>
+      <button id="pause-docs" type="button"><span>全部文档</span><kbd>L</kbd></button>
+      <button id="pause-bag" type="button"><span>背包</span><kbd>E</kbd></button>
+    </nav>
   </div>
 
   <div id="help" class="overlay hidden">
@@ -79,34 +93,90 @@
         </section>
         <section>
           <h3>路线</h3>
-          <p>给书架编上顺序。按 N，光柱会移到下一处。H 打开这份说明。一切都会自动记住。</p>
-          <p>备份可以导出成一个文件。上传时，100KB 以内免费存到 Arweave，更大的正文自动存到 Walrus 主网。笔记在另一个网页里按条打开。创建钱包只在这台浏览器里生成钥匙，不会弹出插件确认。</p>
+          <p>给书架编上顺序。按 N，光柱会移到下一处。B 打开个人存储信息，L 用表格查看全部文稿。</p>
         </section>
       </div>
     </div>
   </div>
 
-  <div id="backup" class="overlay hidden">
-    <div class="menu-card wide">
-      <div class="panel-head">
-        <h2>备份</h2>
+  <div id="backup" class="overlay apple-shade hidden">
+    <section class="apple-sheet">
+      <header class="apple-head">
+        <h2>个人存储信息</h2>
         <button id="backup-close" type="button">关闭</button>
+      </header>
+      <div id="account-remind" class="account-remind hidden">请导出账户。上方的提醒会一直留着，直到导出。</div>
+      <div id="wallet-box" class="address-stack"></div>
+      <div class="route-list">
+        <div class="route-switch" data-route="small">
+          <b>100KB 以内</b>
+          <div class="segment">
+            <button type="button" data-store="arweave" class="on">Arweave</button>
+            <button type="button" data-store="walrus">Walrus</button>
+          </div>
+        </div>
+        <div class="route-switch" data-route="large">
+          <b>超过 100KB</b>
+          <div class="segment">
+            <button type="button" data-store="arweave">Arweave</button>
+            <button type="button" data-store="walrus" class="on">Walrus</button>
+          </div>
+        </div>
       </div>
-      <p class="inv-hint">点「上传」时，100KB 以内免费存到 Arweave，超过 100KB 的正文自动存到 Walrus 主网，从 Sui 钥匙扣费。自己分成 100KB 以内再上传，仍按免费存放。点「小文件也存到 Walrus」，100KB 以内的也会收费。每一条笔记单独存放，方块只记坐标。</p>
-      <div id="wallet-box" class="wallet-box"></div>
-      <div class="backup-actions">
-        <button id="wallet-create" type="button">创建两个链的钱包</button>
-        <button id="wallet-export" class="secondary" type="button">导出钥匙</button>
-        <button id="backup-export" class="secondary" type="button">导出文件</button>
-        <button id="backup-import" class="secondary" type="button">导入文件</button>
+      <p class="apple-lead">导出和导入都是一份文件，方块方位和笔记在一起。上传按这两个开关走。</p>
+      <div class="apple-list">
+        <button id="wallet-create" type="button">创建账户</button>
         <button id="backup-ar" type="button">上传</button>
-        <button id="backup-sui" class="secondary" type="button">小文件也存到 Walrus</button>
-        <button id="backup-library" class="secondary" type="button">打开笔记目录</button>
-        <input id="backup-file" type="file" accept="application/json,.json" hidden />
+        <button id="wallet-export" type="button">导出账户</button>
+        <button id="backup-export" type="button">导出文件</button>
+        <button id="backup-import" type="button">导入文件</button>
       </div>
-      <p id="backup-status" class="backup-status"></p>
-      <p id="backup-result" class="backup-result"></p>
-    </div>
+      <input id="backup-file" type="file" accept="application/json,.json" hidden />
+      <div class="meter" hidden><div class="meter-fill"></div></div>
+      <p class="apple-status" data-status></p>
+      <p id="backup-result" class="apple-status"></p>
+    </section>
+  </div>
+
+  <div id="docs" class="overlay apple-shade hidden">
+    <section class="apple-sheet wide">
+      <header class="apple-head">
+        <h2>全部文档</h2>
+        <button id="docs-close" type="button">关闭</button>
+      </header>
+      <div class="segment">
+        <button id="docs-local" class="on" type="button">本地</button>
+        <button id="docs-chain" type="button">链上</button>
+      </div>
+      <div class="doc-tools">
+        <input id="docs-search" type="search" placeholder="搜索标题、线索词、正文" />
+        <p id="docs-count"></p>
+      </div>
+      <div class="meter" hidden><div class="meter-fill"></div></div>
+      <p class="apple-status" data-status></p>
+      <div class="doc-table-wrap">
+        <table class="doc-table">
+          <thead>
+            <tr>
+              <th><button type="button" data-sort="order">顺序<i></i></button></th>
+              <th><button type="button" data-sort="cue">线索词<i></i></button></th>
+              <th><button type="button" data-sort="title">标题<i></i></button></th>
+              <th><button type="button" data-sort="where">位置<i></i></button></th>
+              <th><button type="button" data-sort="store">存放<i></i></button></th>
+            </tr>
+          </thead>
+          <tbody id="docs-body"></tbody>
+        </table>
+      </div>
+      <article id="docs-read" class="doc-read hidden">
+        <button id="docs-back" type="button">返回表格</button>
+        <button id="docs-open-palace" type="button" class="hidden">在宫殿里打开</button>
+        <p id="docs-kicker" class="apple-kicker"></p>
+        <h3 id="docs-title"></h3>
+        <p id="docs-where"></p>
+        <div id="docs-body-read" class="doc-body"></div>
+      </article>
+    </section>
   </div>
 
   <div id="inventory" class="overlay hidden">

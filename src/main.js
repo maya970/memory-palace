@@ -20,7 +20,10 @@ import {
 import { starterNotes as buildStarterNotes } from './palace.js';
 import { createEditor } from './editor.js';
 import { createBackup } from './backup-ui.js';
+import { createDocs } from './docs.js';
+import { createGate } from './gate.js';
 import { bundleToSave } from './bundle.js';
+import { accountNeedsExport, markAccountExported, walletFile } from './wallets.js';
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const dirs = ['北', '东北', '东', '东南', '南', '西南', '西', '西北'];
@@ -34,9 +37,10 @@ const hotbarEl = document.querySelector('#hotbar');
 const hotbarNameEl = document.querySelector('#hotbar-name');
 const toastBox = document.querySelector('#toasts');
 const startEl = document.querySelector('#start');
+const introEl = document.querySelector('#intro');
 const pauseEl = document.querySelector('#pause');
 const helpEl = document.querySelector('#help');
-const enterBtn = document.querySelector('#enter');
+const docsEl = document.querySelector('#docs');
 
 const input = {
   forward: false,
@@ -173,33 +177,65 @@ const editor = createEditor(document.querySelector('#editor'), {
   onToast: toast,
 });
 
+function syncAccountBanner() {
+  const pending = accountNeedsExport();
+  document.body.classList.toggle('account-pending', pending);
+  document.querySelector('#account-banner').classList.toggle('hidden', !pending);
+}
+
 const backup = createBackup(document.querySelector('#backup'), {
   snapshot,
   download,
-  onImport(bundle) {
-    allowSave = false;
-    writeSave(bundleToSave(bundle));
-    location.reload();
-  },
+  onImport: restoreAndEnter,
   onClose: closeBackup,
+  onAccount: syncAccountBanner,
+});
+
+const docs = createDocs(docsEl, {
+  localNotes: () => sortNotes(notes),
+  onOpenLocal(note) {
+    const pos = parseShelf(note.shelf);
+    docs.close();
+    if (pos) openShelf(pos.x, pos.y, pos.z);
+  },
+  onClose: closeDocs,
+});
+
+const gate = createGate(startEl, {
+  autoEnter: sessionStorage.getItem('memory-palace-enter') === '1',
+  hasLocal: () => hasSave(),
+  onRestore: restoreAndEnter,
+  onAccount: syncAccountBanner,
+  onIntro() {
+    sessionStorage.removeItem('memory-palace-enter');
+    introEl.classList.remove('hidden');
+  },
 });
 
 resize();
 window.addEventListener('resize', resize);
 window.addEventListener('beforeunload', persist);
 
-enterBtn.addEventListener('click', () => {
+document.querySelector('#account-export').addEventListener('click', () => {
+  const file = walletFile();
+  if (!file) return;
+  download(file, '宫殿账户.json', 'application/json');
+  markAccountExported();
+  syncAccountBanner();
+  backup.refresh();
+});
+syncAccountBanner();
+document.querySelector('#intro-go').addEventListener('click', () => {
   sfx.unlock();
-  startEl.classList.add('hidden');
+  introEl.classList.add('hidden');
   hud.classList.remove('hidden');
   started = true;
   lock();
 });
-document.querySelector('#start-help').addEventListener('click', () => helpEl.classList.remove('hidden'));
 document.querySelector('#resume').addEventListener('click', () => lock());
 document.querySelector('#pause-bag').addEventListener('click', openBag);
-document.querySelector('#pause-backup').addEventListener('click', openBackup);
-document.querySelector('#pause-help').addEventListener('click', () => helpEl.classList.remove('hidden'));
+document.querySelector('#pause-storage').addEventListener('click', openBackup);
+document.querySelector('#pause-docs').addEventListener('click', openDocs);
 document.querySelector('#btn-bag').addEventListener('click', openBag);
 document.querySelector('#btn-backup').addEventListener('click', openBackup);
 document.querySelector('#btn-help').addEventListener('click', () => {
@@ -262,15 +298,20 @@ window.addEventListener('keydown', (event) => {
       closeEditor();
     } else if (inventory.isOpen()) {
       closeBag();
+    } else if (docs.isOpen()) {
+      closeDocs();
     } else if (backup.isOpen()) {
       closeBackup();
+    } else if (!introEl.classList.contains('hidden')) {
+      introEl.classList.add('hidden');
+      startEl.classList.remove('hidden');
     } else if (!helpEl.classList.contains('hidden')) {
       helpEl.classList.add('hidden');
       if (started) lock();
     }
     return;
   }
-  if (event.code === 'KeyE' && !event.repeat && started && !editor.isOpen() && !backup.isOpen() && helpEl.classList.contains('hidden') && startEl.classList.contains('hidden')) {
+  if (event.code === 'KeyE' && !event.repeat && started && !editor.isOpen() && !backup.isOpen() && !docs.isOpen() && helpEl.classList.contains('hidden') && introEl.classList.contains('hidden')) {
     event.preventDefault();
     if (inventory.isOpen()) closeBag();
     else openBag();
@@ -281,10 +322,23 @@ window.addEventListener('keydown', (event) => {
     saveSoon();
     return;
   }
-  if (typingTarget(event)) {
+  if (fieldTarget(event)) {
     if ((event.ctrlKey || event.metaKey) && event.code === 'KeyS') event.preventDefault();
     return;
   }
+  if (event.code === 'KeyB' && started && !editor.isOpen()) {
+    event.preventDefault();
+    if (backup.isOpen()) closeBackup();
+    else openBackup();
+    return;
+  }
+  if (event.code === 'KeyL' && started && !editor.isOpen()) {
+    event.preventDefault();
+    if (docs.isOpen()) closeDocs();
+    else openDocs();
+    return;
+  }
+  if (overlayOpen()) return;
   if (event.repeat) {
     setMoveFlag(event.code, true);
     return;
@@ -360,10 +414,7 @@ function frame(now) {
   clouds.position.x = reducedMotion ? 0 : Math.sin(now * 0.00004) * 6;
   renderer.render(scene, camera);
   labelRenderer.render(scene, camera);
-  if (enterBtn.disabled) {
-    enterBtn.disabled = false;
-    enterBtn.textContent = hasSave() ? '回到宫殿' : '进入宫殿';
-  }
+  gate.markReady();
   requestAnimationFrame(frame);
 }
 
@@ -696,14 +747,14 @@ function toast(message) {
 function lock() {
   if (!started || overlayOpen()) return;
   try {
-    renderer.domElement.requestPointerLock();
+    renderer.domElement.requestPointerLock()?.catch(() => {});
   } catch {
     /* 没有可靠的用户手势时，浏览器会拒绝锁定鼠标 */
   }
 }
 
 function overlayOpen() {
-  return editor.isOpen() || inventory.isOpen() || backup.isOpen() || !helpEl.classList.contains('hidden') || !startEl.classList.contains('hidden');
+  return editor.isOpen() || inventory.isOpen() || backup.isOpen() || docs.isOpen() || !helpEl.classList.contains('hidden') || !startEl.classList.contains('hidden') || !introEl.classList.contains('hidden');
 }
 
 function syncPause() {
@@ -713,13 +764,13 @@ function syncPause() {
     rightDown = false;
   }
   document.body.classList.toggle('locked', locked);
-  const show = started && !locked && !editor.isOpen() && !inventory.isOpen() && !backup.isOpen() && helpEl.classList.contains('hidden');
+  const show = started && !locked && !editor.isOpen() && !inventory.isOpen() && !backup.isOpen() && !docs.isOpen() && helpEl.classList.contains('hidden') && introEl.classList.contains('hidden');
   pauseEl.classList.toggle('hidden', !show);
   document.querySelector('#crosshair').classList.toggle('hidden', !locked);
 }
 
 function openBag() {
-  if (!started || editor.isOpen() || backup.isOpen() || !helpEl.classList.contains('hidden')) return;
+  if (!started || editor.isOpen() || backup.isOpen() || docs.isOpen() || !helpEl.classList.contains('hidden') || !introEl.classList.contains('hidden')) return;
   inventory.open();
   document.exitPointerLock();
   pauseEl.classList.add('hidden');
@@ -730,10 +781,31 @@ function closeBag() {
   if (started) lock();
 }
 
+function restoreAndEnter(bundle) {
+  allowSave = false;
+  sessionStorage.setItem('memory-palace-enter', '1');
+  writeSave(bundleToSave(bundle));
+  location.reload();
+}
+
+function openDocs() {
+  if (!started || editor.isOpen()) return;
+  document.exitPointerLock();
+  pauseEl.classList.add('hidden');
+  backup.close();
+  docs.open();
+}
+
+function closeDocs() {
+  docs.close();
+  if (started) lock();
+}
+
 function openBackup() {
   if (!started || editor.isOpen()) return;
   document.exitPointerLock();
   pauseEl.classList.add('hidden');
+  docs.close();
   backup.open();
 }
 
@@ -742,8 +814,7 @@ function closeBackup() {
   if (started) lock();
 }
 
-function typingTarget(event) {
-  if (overlayOpen()) return true;
+function fieldTarget(event) {
   const el = event.target;
   return el && (el.isContentEditable || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
 }

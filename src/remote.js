@@ -5,12 +5,13 @@ const WALRUS_RELAY = 'https://upload-relay.mainnet.walrus.space';
 const WALRUS_BYTES = 10 * 1024 * 1024;
 const WALRUS_EPOCHS = 53;
 
-function destination(text, payForSmall) {
-  return payForSmall || byteLength(text) > FREE_BYTES ? 'walrus' : 'arweave';
+function destination(text, routes) {
+  const large = byteLength(text) > FREE_BYTES;
+  if (large) return routes.large === 'arweave' ? 'arweave' : 'walrus';
+  return routes.small === 'walrus' ? 'walrus' : 'arweave';
 }
 
 export async function uploadArweave(text, jwk, tag) {
-  if (byteLength(text) > FREE_BYTES) throw new Error('这一条超过 100KB，会改走 Walrus');
   const { Buffer } = await import('buffer');
   globalThis.Buffer = Buffer;
   const { ArweaveSigner, createData } = await import('arbundles');
@@ -50,7 +51,7 @@ function bytesFromHex(hexText) {
 function walrusFailure(error) {
   const message = String(error?.message || error || '');
   if (/insufficient|not enough|balance|No valid gas|coin/i.test(message)) {
-    return '这把 Sui 钥匙里的 SUI 或 WAL 不够。大文本存在 Walrus 主网，费用从这把钥匙扣，不会弹出钱包。';
+    return '这个账户里的 SUI 或 WAL 不够。存到 Walrus 主网的费用从账户里扣，不会弹出确认。';
   }
   return message.slice(0, 180) || 'Walrus 没有收下';
 }
@@ -98,12 +99,14 @@ export async function uploadWalrus(text, secretHex) {
   }
 }
 
-export async function uploadBundle(bundle, wallets, mode, onStatus) {
-  const payForSmall = mode === 'walrus';
-  const put = async (value, label, tag) => {
+export async function uploadBundle(bundle, wallets, routes, onStatus) {
+  const chosen = {
+    small: routes?.small === 'walrus' ? 'walrus' : 'arweave',
+    large: routes?.large === 'arweave' ? 'arweave' : 'walrus',
+  };
+  const put = async (value, label, tag, store = destination(JSON.stringify(value), chosen)) => {
     const text = JSON.stringify(value);
-    const store = destination(text, payForSmall);
-    onStatus?.(store === 'walrus' ? `正在把${label}存到 Walrus` : `正在上传${label}`);
+    onStatus?.(store === 'walrus' ? `正在把${label}存到 Walrus` : `正在把${label}存到 Arweave`);
     const ref = store === 'walrus'
       ? await uploadWalrus(text, wallets.sui.secret)
       : await uploadArweave(text, wallets.arweave.jwk, tag);
@@ -114,11 +117,15 @@ export async function uploadBundle(bundle, wallets, mode, onStatus) {
     const saved = await put(note, `《${note.title || note.cue || '未命名'}》`, 'note');
     notes.push(noteStub(note, saved.ref, saved.store));
   }
+  const worldText = JSON.stringify(bundle.world);
+  const worldStore = destination(worldText, chosen);
+  const chunks = worldStore === 'arweave' && byteLength(worldText) > FREE_BYTES
+    ? splitWorld(bundle.world)
+    : [bundle.world];
   const world = [];
-  const chunks = payForSmall ? [bundle.world] : splitWorld(bundle.world);
   for (let index = 0; index < chunks.length; index += 1) {
-    const label = chunks.length > 1 ? `方块 ${index + 1}/${chunks.length}` : '方块记录';
-    world.push(await put(chunks[index], label, `world-${index + 1}`));
+    const label = chunks.length > 1 ? `方块方位 ${index + 1}/${chunks.length}` : '方块方位';
+    world.push(await put(chunks[index], label, `world-${index + 1}`, chunks.length > 1 ? 'arweave' : worldStore));
   }
   const base = {
     version: 2,
@@ -131,14 +138,11 @@ export async function uploadBundle(bundle, wallets, mode, onStatus) {
     world,
     notes,
   };
-  const manifest = {
-    ...base,
-    store: payForSmall || byteLength({ ...base, store: 'arweave' }) > FREE_BYTES ? 'walrus' : 'arweave',
-  };
-  const saved = await put(manifest, '目录', 'manifest');
-  const usesWalrus = saved.store === 'walrus' || notes.some((item) => item.store === 'walrus') || world.some((item) => item.store === 'walrus');
+  const manifestStore = destination(JSON.stringify({ ...base, store: 'arweave' }), chosen);
+  const manifest = { ...base, store: manifestStore };
+  const saved = await put(manifest, '索引', 'manifest', manifestStore);
   rememberUpload(saved.store, saved.ref);
-  return { id: saved.ref, store: saved.store, usesWalrus, paidAll: payForSmall };
+  return { id: saved.ref, store: saved.store, routes: chosen };
 }
 
 export async function readStored(store, ref) {
@@ -159,21 +163,36 @@ export function pieceRef(piece) {
   return typeof piece === 'string' ? piece : piece?.ref;
 }
 
-export async function resolveBundle(data) {
+export async function resolveBundle(data, onProgress) {
   if (!data || typeof data !== 'object') throw new Error('这个文件不是宫殿备份');
   if (data.version === 1 && Array.isArray(data.notes) && !data.kind) return buildBundle(data);
   if (data.kind !== 'memory-palace') throw new Error('这个文件不是宫殿备份');
   const fallback = data.store === 'walrus' ? 'walrus' : 'arweave';
+  const sources = data.notes || [];
+  const worldPieces = Array.isArray(data.world) ? data.world : [];
+  const total = Math.max(1, sources.length + worldPieces.length);
+  let step = 0;
+  const tick = (label) => onProgress?.({ ratio: step / total, label });
   const notes = [];
-  for (const item of data.notes || []) {
+  for (const item of sources) {
+    const title = item?.title || item?.cue;
+    tick(title ? `正在取回《${title}》` : '正在取回一篇文稿');
     notes.push(item?.html ? item : await readStored(pieceStore(item, fallback), pieceRef(item)));
+    step += 1;
   }
   let world = data.world;
   if (Array.isArray(world)) {
     const chunks = [];
-    for (const piece of world) chunks.push(await readStored(pieceStore(piece, fallback), pieceRef(piece)));
+    for (const piece of world) {
+      tick('正在取回方块记录');
+      chunks.push(await readStored(pieceStore(piece, fallback), pieceRef(piece)));
+      step += 1;
+    }
     world = joinWorld(chunks);
   }
+  const placed = world?.placed?.length || 0;
+  const removed = world?.removed?.length || 0;
+  onProgress?.({ ratio: 1, label: `方块已取回，新放 ${placed} 块，拆掉 ${removed} 处` });
   return { ...data, notes, world: world || { removed: [], placed: [] } };
 }
 
