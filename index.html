@@ -8,10 +8,10 @@
 </head>
 <body>
   <div id="account-banner" class="account-banner hidden">
-    <p>按 Esc 会出现鼠标。账户密钥一旦丢失无法找回。区块链上的记录不能更改。请妥善保存密钥，并及时上传。</p>
+    <p data-i18n="banner">按 Esc 会出现鼠标。账户密钥一旦丢失无法找回。区块链上的记录不能更改。请妥善保存密钥，并及时上传。</p>
     <div class="top-actions">
-      <button id="top-upload" type="button">上传</button>
-      <button id="account-export" type="button">导出账户</button>
+      <button id="top-upload" type="button" data-i18n="upload">上传</button>
+      <button id="account-export" type="button" data-i18n="exportAccount">导出账户</button>
     </div>
   </div>
   <div id="view"></div>
@@ -32,16 +32,17 @@
 
   <div id="start" class="overlay apple-shade">
     <section class="apple-sheet">
-      <p class="apple-kicker">记忆宫殿笔记</p>
-      <p class="apple-lead">这是一本可视化的记忆宫殿笔记。用我的世界的方式走路、放方块，把书架当成位点，方便记住写下来的东西。</p>
-      <p class="apple-lead">账户密钥一旦丢失，无法找回。区块链上的记录不能更改。请妥善保存密钥，并及时上传。</p>
-      <h1>先登录</h1>
+      <p class="apple-kicker" data-i18n="brand">记忆宫殿笔记</p>
+      <label class="lang-pick"><span data-i18n="language">语言</span><select data-lang data-i18n-aria="language" aria-label="语言"></select></label>
+      <p class="apple-lead" data-i18n="pitch">这是一本可视化的记忆宫殿笔记。用我的世界的方式走路、放方块，把书架当成位点，方便记住写下来的东西。</p>
+      <p class="apple-lead" data-i18n="keyWarn">账户密钥一旦丢失，无法找回。区块链上的记录不能更改。请妥善保存密钥，并及时上传。</p>
+      <h1 data-i18n="signIn">先登录</h1>
       <div id="gate-wallet" class="address-stack"></div>
       <div class="apple-list">
-        <button id="gate-create" type="button">创建账户<small>生成后请立刻导出账户</small></button>
-        <button id="gate-wallet-pick" type="button">导入账户<small>恢复链上最新索引、方块方位和每一篇笔记</small></button>
-        <button id="gate-local" type="button" disabled>本地笔记<small>正在准备这座宫殿</small></button>
-        <button id="gate-file-pick" type="button">导入文件<small>一份文件，方块方位和笔记在一起</small></button>
+        <button id="gate-create" type="button"><span data-i18n="createAccount">创建账户</span><small data-i18n="createHint">生成后请立刻导出账户</small></button>
+        <button id="gate-wallet-pick" type="button"><span data-i18n="importAccount">导入账户</span><small data-i18n="importHint">恢复链上最新索引、方块方位和每一篇笔记</small></button>
+        <button id="gate-local" type="button" disabled><span data-i18n="localNotes">本地笔记</span><small data-i18n="localPreparing">正在准备这座宫殿</small></button>
+        <button id="gate-file-pick" type="button"><span data-i18n="importFile">导入文件</span><small data-i18n="importFileHint">一份文件，方块方位和笔记在一起</small></button>
       </div>
       <input id="gate-wallet-file" type="file" accept="application/json,.json" hidden />
       <input id="gate-palace-file" type="file" accept="application/json,.json" hidden />
@@ -52,21 +53,22 @@
 
   <div id="intro" class="overlay apple-shade hidden">
     <section class="apple-sheet">
-      <p class="apple-kicker">记忆宫殿笔记</p>
-      <h1>书架是位点</h1>
-      <p class="apple-lead">打开一格，就是一篇文稿。写下来的东西留在这份笔记里。</p>
-      <button id="intro-go" type="button">走进去</button>
+      <p class="apple-kicker" data-i18n="brand">记忆宫殿笔记</p>
+      <h1 data-i18n="introTitle">书架是位点</h1>
+      <p class="apple-lead" data-i18n="introLead">打开一格，就是一篇文稿。写下来的东西留在这份笔记里。</p>
+      <button id="intro-go" type="button" data-i18n="enter">走进去</button>
     </section>
   </div>
 
   <div id="pause" class="overlay apple-shade hidden">
-    <nav class="apple-menu" aria-label="菜单">
-      <p class="apple-kicker">记忆宫殿笔记</p>
-      <button id="resume" type="button"><span>继续</span></button>
-      <button id="pause-storage" type="button"><span>个人存储信息</span><kbd>B</kbd></button>
-      <button id="pause-docs" type="button"><span>全部文档</span><kbd>L</kbd></button>
-      <button id="pause-bag" type="button"><span>背包</span><kbd>E</kbd></button>
-      <button id="pause-help" type="button"><span>帮助</span><kbd>H</kbd></button>
+    <nav class="apple-menu" data-i18n-aria="menu" aria-label="菜单">
+      <p class="apple-kicker" data-i18n="brand">记忆宫殿笔记</p>
+      <label class="lang-pick"><span data-i18n="language">语言</span><select data-lang data-i18n-aria="language" aria-label="语言"></select></label>
+      <button id="resume" type="button"><span data-i18n="resume">继续</span></button>
+      <button id="pause-storage" type="button"><span data-i18n="storage">个人存储信息</span><kbd>B</kbd></button>
+      <button id="pause-docs" type="button"><span data-i18n="docs">全部文档</span><kbd>L</kbd></button>
+      <button id="pause-bag" type="button"><span data-i18n="bag">背包</span><kbd>E</kbd></button>
+      <button id="pause-help" type="button"><span data-i18n="help">帮助</span><kbd>H</kbd></button>
     </nav>
   </div>
 
@@ -138,12 +140,12 @@
 
   <div id="leave" class="overlay apple-shade hidden">
     <section class="apple-sheet">
-      <p class="apple-kicker">离开这座宫殿</p>
-      <h2>要现在上传吗？</h2>
-      <p class="apple-lead">按 Esc 已经出现鼠标。Arweave 上传有延时，可以使用 Walrus，或者导出本地文件。密钥一旦丢失无法找回。</p>
+      <p class="apple-kicker" data-i18n="leaveKicker">离开这座宫殿</p>
+      <h2 data-i18n="leaveTitle">要现在上传吗？</h2>
+      <p class="apple-lead" data-i18n="leaveLead">按 Esc 已经出现鼠标。Arweave 上传有延时，可以使用 Walrus，或者导出本地文件。密钥一旦丢失无法找回。</p>
       <div class="apple-list">
-        <button id="leave-upload" type="button">上传</button>
-        <button id="leave-skip" type="button">先不上传</button>
+        <button id="leave-upload" type="button" data-i18n="upload">上传</button>
+        <button id="leave-skip" type="button" data-i18n="skip">先不上传</button>
       </div>
       <div class="meter" hidden><div class="meter-fill"></div></div>
       <p class="apple-status" data-status></p>

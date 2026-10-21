@@ -583,6 +583,8 @@ body.account-pending #compass { top: 58px; }
 }
 
 .apple-shade {
+  overflow: auto;
+  align-items: safe center;
   background: rgba(8, 8, 12, 0.42);
   backdrop-filter: blur(18px) saturate(1.2);
 }
@@ -597,7 +599,7 @@ body.account-pending #compass { top: 58px; }
   border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow: 0 28px 80px rgba(0, 0, 0, 0.38);
   backdrop-filter: blur(40px) saturate(1.5);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Nirmala UI", "Leelawadee UI", "Malgun Gothic", "Yu Gothic UI", "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
 .apple-sheet.wide { width: min(880px, 100%); max-height: calc(100vh - 48px); overflow: auto; }
@@ -611,6 +613,34 @@ body.account-pending #compass { top: 58px; }
 
 .apple-sheet h1,
 .apple-menu .apple-kicker { letter-spacing: 0; }
+
+.lang-pick {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+  color: rgba(245, 245, 247, 0.72);
+  font-size: 13px;
+}
+
+.lang-pick span { flex: none; }
+
+.lang-pick select {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #f5f5f7;
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 10px;
+}
+
+.lang-pick select option {
+  color: #1d1d1f;
+  background: #fff;
+}
 
 .apple-sheet h1 {
   margin: 0 0 16px;
@@ -666,7 +696,7 @@ body.account-pending #compass { top: 58px; }
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.08);
   color: #f5f5f7;
-  text-align: left;
+  text-align: start;
   font-size: 17px;
 }
 

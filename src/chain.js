@@ -1,3 +1,4 @@
+import { t } from './i18n.js';
 import { pieceRef, pieceStore, readStored, recentUploads } from './remote.js';
 
 const AR_GQL = 'https://arweave.net/graphql';
@@ -73,7 +74,7 @@ async function latestWalrus(address, onProgress) {
   ]);
   const items = owned?.data || [];
   for (let index = 0; index < items.length; index += 1) {
-    onProgress?.({ ratio: 0.55 + (index / Math.max(1, items.length)) * 0.2, label: '正在查看 Walrus 上的记录' });
+    onProgress?.({ ratio: 0.55 + (index / Math.max(1, items.length)) * 0.2, label: t('checkingWalrus') });
     const id = blobIdOf(items[index]?.data?.content?.fields);
     if (!id) continue;
     try {
@@ -87,7 +88,7 @@ async function latestWalrus(address, onProgress) {
 }
 
 export async function findManifest(wallets, onProgress) {
-  onProgress?.({ ratio: 0.12, label: '正在查找这个账户的最新索引' });
+  onProgress?.({ ratio: 0.12, label: t('findingIndex') });
   for (const item of recentUploads()) {
     try {
       const manifest = await readManifest(item.store, item.id);
@@ -96,7 +97,7 @@ export async function findManifest(wallets, onProgress) {
       /* 本地记得的编号已经读不到 */
     }
   }
-  onProgress?.({ ratio: 0.32, label: '正在查找 Arweave' });
+  onProgress?.({ ratio: 0.32, label: t('findingAr') });
   try {
     const id = await latestArweave(wallets.arweave.address);
     if (id) {
@@ -106,7 +107,7 @@ export async function findManifest(wallets, onProgress) {
   } catch {
     /* 目录也许在 Walrus */
   }
-  onProgress?.({ ratio: 0.5, label: '正在查找 Walrus' });
+  onProgress?.({ ratio: 0.5, label: t('findingWalrus') });
   try {
     return await latestWalrus(wallets.sui.address, onProgress);
   } catch {

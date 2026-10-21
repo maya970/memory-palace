@@ -1,4 +1,5 @@
 import { findManifest } from './chain.js';
+import { onLang, t } from './i18n.js';
 import { resolveBundle } from './remote.js';
 import { createWallets, loadWallets, saveWallets, walletAddresses } from './wallets.js';
 
@@ -48,8 +49,8 @@ export function createGate(root, hooks) {
       ? `<span>Arweave</span><code>${escapeHtml(addresses.arweave)}</code><span>Sui</span><code>${escapeHtml(addresses.sui)}</code>`
       : '';
     localButton.querySelector('small').textContent = hooks.hasLocal()
-      ? '按这台浏览器里的存档走进去'
-      : '从一座空宫殿开始';
+      ? t('localReady')
+      : t('localEmpty');
   }
 
   function finish() {
@@ -59,10 +60,10 @@ export function createGate(root, hooks) {
   }
 
   async function restore(wallets) {
-    paint(0.08, '正在查找链上的目录');
+    paint(0.08, t('findingIndex'));
     const manifest = await findManifest(wallets, ({ ratio, label }) => paint(ratio, label));
     if (!manifest) {
-      idle('账户已经在这台浏览器里。链上还没有这份笔记');
+      idle(t('noChain'));
       finish();
       return;
     }
@@ -83,19 +84,19 @@ export function createGate(root, hooks) {
   root.querySelector('#gate-create').addEventListener('click', async () => {
     if (busy) return;
     if (loadWallets()) {
-      idle('这台浏览器里已经有一个账户');
+      idle(t('hasAccount'));
       renderWallets();
       return;
     }
     setBusy(true);
-    paint(null, '正在生成账户');
+    paint(null, t('generating'));
     try {
       await createWallets();
       renderWallets();
       hooks.onAccount?.();
       finish();
     } catch (error) {
-      idle(error?.message || '账户没有生成');
+      idle(error?.message || t('accountFailed'));
       setBusy(false);
     }
   });
@@ -104,14 +105,14 @@ export function createGate(root, hooks) {
     event.target.value = '';
     if (!file || busy) return;
     setBusy(true);
-    paint(0.04, '正在读取账户');
+    paint(0.04, t('readingAccount'));
     try {
       const wallets = saveWallets(JSON.parse(await file.text()));
       renderWallets();
       hooks.onAccount?.();
       await restore(wallets);
     } catch (error) {
-      idle(error?.message || '这个账户没有放进来');
+      idle(error?.message || t('accountRejected'));
       setBusy(false);
     }
   });
@@ -120,17 +121,18 @@ export function createGate(root, hooks) {
     event.target.value = '';
     if (!file || busy) return;
     setBusy(true);
-    paint(0.2, '正在读取文件');
+    paint(0.2, t('readingFile'));
     try {
       const bundle = await resolveBundle(JSON.parse(await file.text()), ({ ratio, label }) => paint(0.2 + ratio * 0.8, label));
       hooks.onRestore(bundle);
     } catch (error) {
-      idle(error?.message || '这个文件打不开');
+      idle(error?.message || t('fileFailed'));
       setBusy(false);
     }
   });
 
   renderWallets();
+  onLang(renderWallets);
   return {
     markReady() {
       if (prepared) return;

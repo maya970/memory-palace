@@ -24,6 +24,7 @@ import { createDocs } from './docs.js';
 import { createGate } from './gate.js';
 import { bundleToSave } from './bundle.js';
 import { accountNeedsExport, markAccountExported, walletFile } from './wallets.js';
+import { applyI18n, t } from './i18n.js';
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const dirs = ['北', '东北', '东', '东南', '南', '西南', '西', '西北'];
@@ -204,6 +205,7 @@ const gate = createGate(startEl, {
     introEl.classList.remove('hidden');
   },
 });
+applyI18n();
 
 resize();
 window.addEventListener('resize', resize);
@@ -212,7 +214,7 @@ window.addEventListener('beforeunload', persist);
 document.querySelector('#account-export').addEventListener('click', () => {
   const file = walletFile();
   if (!file) return;
-  download(file, '宫殿账户.json', 'application/json');
+  download(file, t('accountFile'), 'application/json');
   markAccountExported();
   syncAccountBanner();
   backup.refresh();

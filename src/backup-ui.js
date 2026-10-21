@@ -1,4 +1,5 @@
 import { buildBundle } from './bundle.js';
+import { t } from './i18n.js';
 import { recentUploads, uploadBundle } from './remote.js';
 import { accountNeedsExport, createWallets, loadWallets, markAccountExported, walletAddresses, walletFile } from './wallets.js';
 
@@ -91,7 +92,7 @@ export function createBackup(root, hooks) {
       paint(null, label);
       report?.(label);
     };
-    tell('正在上传');
+    tell(t('uploading'));
     try {
       const wallets = await ensureWallets();
       const bundle = buildBundle(hooks.snapshot());
@@ -101,14 +102,14 @@ export function createBackup(root, hooks) {
       const removed = bundle.world.removed?.length || 0;
       const usesArweave = routes.small === 'arweave' || routes.large === 'arweave';
       const done = usesArweave
-        ? `Arweave 上传有延时，可以使用 Walrus，或者导出本地文件。这次新放 ${placed} 块，拆掉 ${removed} 处。`
-        : `已经写进 Walrus。这次新放 ${placed} 块，拆掉 ${removed} 处。`;
+        ? t('arDelay', { placed, removed })
+        : t('walrusDone', { placed, removed });
       idle(done);
       report?.(done);
       resultEl.innerHTML = `<a href="library.html?${query}">${escapeHtml(result.id)}</a>`;
       return done;
     } catch (error) {
-      const message = error?.message || '没有传上去';
+      const message = error?.message || t('uploadFailed');
       idle(message);
       report?.(message);
       return '';
@@ -148,7 +149,7 @@ export function createBackup(root, hooks) {
       idle('还没有账户可以导出');
       return;
     }
-    hooks.download(file, '宫殿账户.json', 'application/json');
+    hooks.download(file, t('accountFile'), 'application/json');
     markAccountExported();
     hooks.onAccount?.();
     renderWallets();

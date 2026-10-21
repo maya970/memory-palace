@@ -1,6 +1,7 @@
 import { blake2b } from '@noble/hashes/blake2.js';
 import { sha512 } from '@noble/hashes/sha2.js';
 import * as ed from '@noble/ed25519';
+import { t } from './i18n.js';
 
 const KEY = 'memory-palace-wallets';
 const NOTICE = 'memory-palace-account-notice';
@@ -57,7 +58,7 @@ export function markAccountExported() {
 
 export function saveWallets(data) {
   if (!data?.arweave?.jwk || !data?.arweave?.address || !data?.sui?.secret || !data?.sui?.address) {
-    throw new Error('这不是宫殿账户');
+    throw new Error(t('badAccount'));
   }
   const wallets = {
     arweave: { address: data.arweave.address, jwk: data.arweave.jwk },

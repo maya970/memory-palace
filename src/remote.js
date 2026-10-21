@@ -1,4 +1,5 @@
 import { buildBundle, byteLength, FREE_BYTES, joinWorld, noteStub, splitWorld } from './bundle.js';
+import { t } from './i18n.js';
 
 const AR_UPLOAD = 'https://upload.ardrive.io/v1/tx';
 const WALRUS_RELAY = 'https://upload-relay.mainnet.walrus.space';
@@ -32,11 +33,11 @@ export async function uploadArweave(text, jwk, tag) {
   });
   const receiptText = await res.text();
   if (!res.ok) {
-    if (res.status === 402) throw new Error('免费额度用完了');
-    throw new Error(receiptText.slice(0, 160) || 'Arweave 没有收下');
+    if (res.status === 402) throw new Error(t('quota'));
+    throw new Error(receiptText.slice(0, 160) || t('arRejected'));
   }
   const receipt = JSON.parse(receiptText);
-  if (!receipt.id) throw new Error('Arweave 没有返回编号');
+  if (!receipt.id) throw new Error(t('arNoId'));
   return receipt.id;
 }
 
@@ -50,10 +51,8 @@ function bytesFromHex(hexText) {
 
 function walrusFailure(error) {
   const message = String(error?.message || error || '');
-  if (/insufficient|not enough|balance|No valid gas|coin/i.test(message)) {
-    return '这个账户里的 SUI 或 WAL 不够。存到 Walrus 主网的费用从账户里扣，不会弹出确认。';
-  }
-  return message.slice(0, 180) || 'Walrus 没有收下';
+  if (/insufficient|not enough|balance|No valid gas|coin/i.test(message)) return t('lowFunds');
+  return message.slice(0, 180) || t('walrusRejected');
 }
 
 let walrusClient;
@@ -80,7 +79,7 @@ async function mainnetWalrus() {
 }
 
 export async function uploadWalrus(text, secretHex) {
-  if (byteLength(text) > WALRUS_BYTES) throw new Error('这一条超过了 10MB');
+  if (byteLength(text) > WALRUS_BYTES) throw new Error(t('tooBig'));
   const { Ed25519Keypair } = await import('@mysten/sui/keypairs/ed25519');
   const keypair = Ed25519Keypair.fromSecretKey(bytesFromHex(secretHex));
   const client = await mainnetWalrus();
@@ -91,10 +90,10 @@ export async function uploadWalrus(text, secretHex) {
       epochs: WALRUS_EPOCHS,
       signer: keypair,
     });
-    if (!blobId) throw new Error('Walrus 没有返回编号');
+    if (!blobId) throw new Error(t('walrusNoId'));
     return blobId;
   } catch (error) {
-    if (error?.message === 'Walrus 没有返回编号') throw error;
+    if (error?.message === t('walrusNoId')) throw error;
     throw new Error(walrusFailure(error));
   }
 }
@@ -106,7 +105,7 @@ export async function uploadBundle(bundle, wallets, routes, onStatus) {
   };
   const put = async (value, label, tag, store = destination(JSON.stringify(value), chosen)) => {
     const text = JSON.stringify(value);
-    onStatus?.(store === 'walrus' ? `正在把${label}存到 Walrus` : `正在把${label}存到 Arweave`);
+    onStatus?.(store === 'walrus' ? t('savingWalrus', { label }) : t('savingAr', { label }));
     const ref = store === 'walrus'
       ? await uploadWalrus(text, wallets.sui.secret)
       : await uploadArweave(text, wallets.arweave.jwk, tag);
@@ -114,7 +113,7 @@ export async function uploadBundle(bundle, wallets, routes, onStatus) {
   };
   const notes = [];
   for (const note of bundle.notes) {
-    const saved = await put(note, `《${note.title || note.cue || '未命名'}》`, 'note');
+    const saved = await put(note, t('noteLabel', { title: note.title || note.cue || t('untitled') }), 'note');
     notes.push(noteStub(note, saved.ref, saved.store));
   }
   const worldText = JSON.stringify(bundle.world);
@@ -124,7 +123,9 @@ export async function uploadBundle(bundle, wallets, routes, onStatus) {
     : [bundle.world];
   const world = [];
   for (let index = 0; index < chunks.length; index += 1) {
-    const label = chunks.length > 1 ? `方块方位 ${index + 1}/${chunks.length}` : '方块方位';
+    const label = chunks.length > 1
+      ? t('blockPosN', { index: index + 1, total: chunks.length })
+      : t('blockPos');
     world.push(await put(chunks[index], label, `world-${index + 1}`, chunks.length > 1 ? 'arweave' : worldStore));
   }
   const base = {
@@ -150,7 +151,7 @@ export async function readStored(store, ref) {
     ? `blob=${encodeURIComponent(ref)}`
     : `tx=${encodeURIComponent(ref)}`;
   const res = await fetch(`/api/storage?${query}`);
-  if (!res.ok) throw new Error((await res.text()).slice(0, 160) || '没有读到这份备份');
+  if (!res.ok) throw new Error((await res.text()).slice(0, 160) || t('readFailed'));
   return res.json();
 }
 
@@ -164,9 +165,9 @@ export function pieceRef(piece) {
 }
 
 export async function resolveBundle(data, onProgress) {
-  if (!data || typeof data !== 'object') throw new Error('这个文件不是宫殿备份');
+  if (!data || typeof data !== 'object') throw new Error(t('notPalace'));
   if (data.version === 1 && Array.isArray(data.notes) && !data.kind) return buildBundle(data);
-  if (data.kind !== 'memory-palace') throw new Error('这个文件不是宫殿备份');
+  if (data.kind !== 'memory-palace') throw new Error(t('notPalace'));
   const fallback = data.store === 'walrus' ? 'walrus' : 'arweave';
   const sources = data.notes || [];
   const worldPieces = Array.isArray(data.world) ? data.world : [];
@@ -176,7 +177,7 @@ export async function resolveBundle(data, onProgress) {
   const notes = [];
   for (const item of sources) {
     const title = item?.title || item?.cue;
-    tick(title ? `正在取回《${title}》` : '正在取回一篇文稿');
+    tick(title ? t('fetchingNote', { title }) : t('fetchingPlain'));
     notes.push(item?.html ? item : await readStored(pieceStore(item, fallback), pieceRef(item)));
     step += 1;
   }
@@ -184,7 +185,7 @@ export async function resolveBundle(data, onProgress) {
   if (Array.isArray(world)) {
     const chunks = [];
     for (const piece of world) {
-      tick('正在取回方块记录');
+      tick(t('fetchingBlocks'));
       chunks.push(await readStored(pieceStore(piece, fallback), pieceRef(piece)));
       step += 1;
     }
@@ -192,7 +193,7 @@ export async function resolveBundle(data, onProgress) {
   }
   const placed = world?.placed?.length || 0;
   const removed = world?.removed?.length || 0;
-  onProgress?.({ ratio: 1, label: `方块已取回，新放 ${placed} 块，拆掉 ${removed} 处` });
+  onProgress?.({ ratio: 1, label: t('blocksBack', { placed, removed }) });
   return { ...data, notes, world: world || { removed: [], placed: [] } };
 }
 
