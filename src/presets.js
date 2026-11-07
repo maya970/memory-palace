@@ -20,7 +20,7 @@ function courtyard() {
   door(placed, 0, 1, 2, 16);
   add(placed, 0, 1, 12, 'bookshelf');
   add(placed, -3, 1, 12, 'writing_desk');
-  add(placed, -3, 2, 12, 'open_notebook');
+  (placed.covers ||= []).push([-3, 1, 12, 'open_notebook']);
   add(placed, 3, 1, 12, 'oak_chair');
   add(placed, 12, 1, 0, 'bed');
   add(placed, 12, 2, 0, 'sheet_white');
@@ -41,7 +41,7 @@ function courtyard() {
     lead: '四面有屋顶的房间围着天井。北屋书桌，东屋卧房，西屋茶桌，南屋黑板。',
     credit: '宫殿自制，对照现实四合院的天井与厢房，不是某个现成地图。',
     spawn: { x: 0.5, y: 1, z: 0.5, yaw: 0, pitch: -0.08 },
-    world: { removed: [], placed },
+    world: { removed: [], placed, covers: placed.covers || [] },
   };
 }
 
@@ -56,7 +56,7 @@ function keep() {
   add(placed, 3, 1, 3, 'planks');
   add(placed, 3, 2, 3, 'planks');
   add(placed, -4, 1, -2, 'oak_table');
-  add(placed, -4, 2, -2, 'candle');
+  (placed.covers ||= []).push([-4, 1, -2, 'candle']);
   add(placed, -2, 1, -2, 'bench');
   add(placed, 2, 1, -2, 'bench');
   add(placed, 5, 1, 5, 'bookshelf');
@@ -72,7 +72,7 @@ function keep() {
     lead: '两层石头房间，下层大厅，上层卧房。对照欧洲砖石城堡的体量，不是魔戒或任何影视场景。',
     credit: '宫殿自制。',
     spawn: { x: 0.5, y: 1, z: 6.5, yaw: Math.PI, pitch: -0.08 },
-    world: { removed: [], placed },
+    world: { removed: [], placed, covers: placed.covers || [] },
   };
 }
 
@@ -106,7 +106,7 @@ function libraryHall() {
     lead: '一条有屋顶的长厅，两侧都是书架，中间两张书桌。',
     credit: '宫殿自制，对照修道院藏书廊的长向房间。',
     spawn: { x: 0.5, y: 1, z: 3.5, yaw: Math.PI, pitch: -0.08 },
-    world: { removed: [], placed },
+    world: { removed: [], placed, covers: placed.covers || [] },
   };
 }
 
@@ -147,7 +147,7 @@ function townhouse() {
     lead: '楼下起居，楼上卧房。对照普通城市联排住宅的进深，不是某座名楼。',
     credit: '宫殿自制。',
     spawn: { x: 0.5, y: 1, z: 6.5, yaw: Math.PI, pitch: -0.08 },
-    world: { removed: [], placed },
+    world: { removed: [], placed, covers: placed.covers || [] },
   };
 }
 
@@ -186,7 +186,7 @@ function station() {
     lead: '缩小的石砌站厅：中间是站台走向，两侧有候车长椅和一间问询桌。',
     credit: '宫殿自制的通用火车站轮廓，不是某座真实车站的测绘复制。',
     spawn: { x: 0.5, y: 1, z: 5.5, yaw: Math.PI, pitch: -0.08 },
-    world: { removed: [], placed },
+    world: { removed: [], placed, covers: placed.covers || [] },
   };
 }
 
@@ -220,7 +220,7 @@ function liberty() {
     lead: '座基里是一间有屋顶的房间，上面是缩小的铜像和火炬。雕像本体 1886 年，作者已进入公有领域。',
     credit: '宫殿自制的方块轮廓，向 Bartholdi 的公有领域雕塑致敬，不是官方授权模型。',
     spawn: { x: 0.5, y: 1, z: 4.5, yaw: Math.PI, pitch: -0.08 },
-    world: { removed: [], placed },
+    world: { removed: [], placed, covers: placed.covers || [] },
   };
 }
 
@@ -250,7 +250,7 @@ function latticeTower() {
     lead: '底层有房间，中段有展望层。轮廓接近格子铁塔，红白相间。',
     credit: '宫殿自制。东京塔等现代商标建筑没有官方授权，这是通用望塔，不是那一座。',
     spawn: { x: 0.5, y: 1, z: 4.5, yaw: Math.PI, pitch: -0.08 },
-    world: { removed: [], placed },
+    world: { removed: [], placed, covers: placed.covers || [] },
   };
 }
 
@@ -284,7 +284,7 @@ function wizardSpire() {
     lead: '三层圆形塔楼，底层书房，中层卧房，顶层观测室。',
     credit: '宫殿自制的奇幻塔，不是某部小说或电影里的塔。',
     spawn: { x: 0.5, y: 1, z: 3.5, yaw: Math.PI, pitch: -0.08 },
-    world: { removed: [], placed },
+    world: { removed: [], placed, covers: placed.covers || [] },
   };
 }
 
@@ -315,7 +315,7 @@ function crystalGrotto() {
     lead: '封闭岩洞，冰和荧石当钟乳，中间有桌椅和一张床。',
     credit: '宫殿自制的奇幻洞窟，不是魔戒里的矿坑或任何现成地图。',
     spawn: { x: 0.5, y: 1, z: 8.5, yaw: Math.PI, pitch: -0.08 },
-    world: { removed: [], placed },
+    world: { removed: [], placed, covers: placed.covers || [] },
   };
 }
 

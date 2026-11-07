@@ -14,7 +14,9 @@ export function createGate(root, hooks) {
   const meter = root.querySelector('.meter');
   const fill = root.querySelector('.meter-fill');
   const walletEl = root.querySelector('#gate-wallet');
-  const localButton = root.querySelector('#gate-local');
+  const authEl = root.querySelector('#gate-auth');
+  const homeEl = root.querySelector('#gate-home');
+  const titleEl = root.querySelector('h1');
   let busy = false;
   let prepared = false;
 
@@ -39,8 +41,17 @@ export function createGate(root, hooks) {
   function setBusy(next) {
     busy = next;
     root.querySelectorAll('button').forEach((button) => {
-      button.disabled = next || (button.id === 'gate-local' && !prepared);
+      const wait = button.id === 'gate-enter' && !prepared;
+      button.disabled = next || wait;
     });
+  }
+
+  function showHome() {
+    const signed = Boolean(loadWallets());
+    authEl.classList.toggle('hidden', signed);
+    homeEl.classList.toggle('hidden', !signed);
+    titleEl.dataset.i18n = signed ? 'signedIn' : 'signIn';
+    titleEl.textContent = t(titleEl.dataset.i18n);
   }
 
   function renderWallets() {
@@ -48,9 +59,7 @@ export function createGate(root, hooks) {
     walletEl.innerHTML = addresses
       ? `<span>Arweave</span><code>${escapeHtml(addresses.arweave)}</code><span>Sui</span><code>${escapeHtml(addresses.sui)}</code>`
       : '';
-    localButton.querySelector('small').textContent = hooks.hasLocal()
-      ? t('localReady')
-      : t('localEmpty');
+    showHome();
   }
 
   function finish() {
@@ -77,9 +86,12 @@ export function createGate(root, hooks) {
   root.querySelector('#gate-file-pick').addEventListener('click', () => {
     if (!busy) root.querySelector('#gate-palace-file').click();
   });
-  root.querySelector('#gate-local').addEventListener('click', () => {
+  root.querySelector('#gate-enter').addEventListener('click', () => {
     if (busy || !prepared) return;
     finish();
+  });
+  root.querySelector('#gate-write').addEventListener('click', () => {
+    if (!busy) hooks.onWriteFirst?.();
   });
   root.querySelector('#gate-create').addEventListener('click', async () => {
     if (busy) return;
@@ -94,7 +106,9 @@ export function createGate(root, hooks) {
       await createWallets();
       renderWallets();
       hooks.onAccount?.();
-      finish();
+      setBusy(false);
+      idle('');
+      showHome();
     } catch (error) {
       idle(error?.message || t('accountFailed'));
       setBusy(false);
@@ -137,8 +151,12 @@ export function createGate(root, hooks) {
     markReady() {
       if (prepared) return;
       prepared = true;
-      if (!busy) localButton.disabled = false;
+      if (!busy) {
+        const enter = root.querySelector('#gate-enter');
+        if (enter) enter.disabled = false;
+      }
       if (hooks.autoEnter) finish();
     },
+    showHome,
   };
 }

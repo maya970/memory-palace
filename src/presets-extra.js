@@ -449,8 +449,45 @@ function shiphall() {
   return palace('shiphall', '船厅', '像一艘翻过来的船长屋。对照北欧船冢厅堂。', placed);
 }
 
+function brickKeep() {
+  const placed = [];
+  room(placed, -12, -10, 12, 10, 'bricks', 'stone_bricks', 'dark_oak_planks', 6);
+  for (const [x, z] of [[-12, -10], [12, -10], [-12, 10], [12, 10]]) {
+    box(placed, x - 2, 1, z - 2, x + 2, 10, z + 2, 'bricks', (px, py, pz) => py < 10 && px > x - 2 && px < x + 2 && pz > z - 2 && pz < z + 2);
+    box(placed, x - 2, 10, z - 2, x + 2, 10, z + 2, 'bricks');
+    add(placed, x, 11, z, 'wool_red');
+  }
+  box(placed, -4, 1, -4, 4, 5, 4, 'stone_bricks', (x, y, z) => x > -4 && x < 4 && z > -4 && z < 4);
+  box(placed, -4, 3, -4, 4, 3, 4, 'planks', (x, _y, z) => Math.abs(x) < 3 && Math.abs(z) < 3);
+  add(placed, -6, 1, -6, 'oak_table');
+  add(placed, 6, 1, -6, 'oak_table');
+  add(placed, -6, 1, 6, 'bench');
+  add(placed, 6, 1, 6, 'bench');
+  add(placed, 0, 1, -7, 'writing_desk');
+  add(placed, -8, 1, 0, 'bookshelf');
+  add(placed, -8, 2, 0, 'bookshelf');
+  add(placed, 8, 1, 0, 'bookshelf');
+  add(placed, 8, 2, 0, 'bookshelf');
+  add(placed, -3, 4, -2, 'bed');
+  add(placed, 3, 4, -2, 'wardrobe');
+  add(placed, 0, 4, 2, 'bookshelf');
+  door(placed, 0, 1, 2, 10);
+  door(placed, 0, 4, 5, -4);
+  if (!placed.covers) placed.covers = [];
+  placed.covers.push([0, 1, -7, 'open_notebook'], [-6, 1, -6, 'candle'], [6, 1, -6, 'ink_pen']);
+  return palace(
+    'brickkeep',
+    '砖石主楼',
+    '截取一层大厅、四角塔和楼上卧房。对照瑞士 Vufflens 城堡公开图纸的砖石体量。',
+    placed,
+    { x: 0.5, y: 1, z: 8.5, yaw: Math.PI, pitch: -0.08 },
+    '自制截取。Vufflens 城堡图纸与示意图为 CC-BY-SA，这里不拷贝原 schematic，只取其砖石主楼与内院的一层比例。',
+  );
+}
+
 export function extraPalaces() {
   return [
+    brickKeep(),
     pyramid(),
     parthenon(),
     colosseum(),

@@ -38,13 +38,14 @@
       <p class="apple-lead" data-i18n="keyWarn">账户密钥一旦丢失，无法找回。区块链上的记录不能更改。请妥善保存密钥，并及时上传。</p>
       <h1 data-i18n="signIn">先登录</h1>
       <div id="gate-wallet" class="address-stack"></div>
-      <div class="apple-list">
+      <div id="gate-auth" class="apple-list">
         <button id="gate-create" type="button"><span data-i18n="createAccount">创建账户</span><small data-i18n="createHint">生成后请立刻导出账户</small></button>
         <button id="gate-wallet-pick" type="button"><span data-i18n="importAccount">导入账户</span><small data-i18n="importHint">恢复链上最新索引、方块方位和每一篇笔记</small></button>
-        <button id="gate-local" type="button" disabled><span data-i18n="localNotes">本地笔记</span><small data-i18n="localPreparing">正在准备这座宫殿</small></button>
         <button id="gate-file-pick" type="button"><span data-i18n="importFile">导入文件</span><small data-i18n="importFileHint">一份文件，方块方位和笔记在一起</small></button>
-        <button id="gate-community" type="button"><span>社区模组</span><small>官方家居、现成宫殿，也可以导入别人分享的包</small></button>
-        <button id="gate-write" type="button"><span>先写一篇</span><small>不进宫殿也能写，存储后会丢进有屋顶的房间</small></button>
+      </div>
+      <div id="gate-home" class="apple-list hidden">
+        <button id="gate-enter" type="button"><span data-i18n="enterPalace">进入宫殿</span><small data-i18n="enterPalaceHint">走进这座已经登录的宫殿</small></button>
+        <button id="gate-write" type="button"><span data-i18n="writeFirst">先写一篇</span><small data-i18n="writeFirstHint">点保存后随机放到有屋顶的房间，不进背包</small></button>
       </div>
       <input id="gate-wallet-file" type="file" accept="application/json,.json" hidden />
       <input id="gate-palace-file" type="file" accept="application/json,.json" hidden />
@@ -70,9 +71,10 @@
       <button id="pause-storage" type="button"><span data-i18n="storage">个人存储信息</span><kbd>B</kbd></button>
       <button id="pause-docs" type="button"><span data-i18n="docs">全部文档</span><kbd>L</kbd></button>
       <button id="pause-bag" type="button"><span data-i18n="bag">背包</span><kbd>E</kbd></button>
-      <button id="pause-community" type="button"><span>社区模组</span></button>
-      <button id="pause-write" type="button"><span>先写一篇</span></button>
+      <button id="pause-community" type="button"><span data-i18n="community">社区模组</span></button>
+      <button id="pause-write" type="button"><span data-i18n="writeFirst">先写一篇</span></button>
       <button id="pause-help" type="button"><span data-i18n="help">帮助</span><kbd>H</kbd></button>
+      <button id="pause-logout" type="button"><span data-i18n="logout">退出登录</span></button>
     </nav>
   </div>
 
@@ -88,7 +90,6 @@
         <button type="button" data-tab="furniture">家具包</button>
       </div>
       <div class="apple-list community-toolbar">
-        <button id="community-write" type="button">先写一篇</button>
         <button id="community-import" type="button">导入模组</button>
         <button id="community-spec" type="button">给 AI 的细则</button>
         <button id="community-export-palace" type="button">导出这座宫殿</button>
@@ -117,8 +118,8 @@
         </section>
         <section>
           <h3>位点</h3>
-          <p>对准书架、书桌、床、衣柜，或桌上摊开的笔记，按 F 或右键打开。按住 Shift 再右键，才会把手里的东西放在表面上。</p>
-          <p>桌布铺在桌子顶上，床单被子枕头铺在床上，笔、信、茶杯这类小物放在桌面或柜子顶上。外套裙子挂到墙面或衣柜旁边。拆掉写过字的那一格，笔记会一起进背包。</p>
+          <p>对准书架、书桌、床、衣柜，或摊开的笔记，按 F 或右键打开。按住 Shift 再右键，才会把手里的东西贴到表面上。</p>
+          <p>桌布床单仍铺在桌面或床上。笔记、笔、信、茶杯可以贴在地面、墙面、床沿、柜侧，不限于桌面。拆掉写过字的那一格，笔记会一起进背包。</p>
         </section>
         <section>
           <h3>这本笔记</h3>
@@ -320,9 +321,13 @@
         <span id="book-meta"></span>
         <button id="note-public" type="button">公开这篇</button>
         <button id="note-detach" class="textish" type="button">收进背包</button>
+        <span id="compose-actions" class="compose-actions hidden">
+          <button id="note-save-drop" type="button">保存随机存放</button>
+          <button id="note-save-bag" type="button">保存进背包</button>
+        </span>
       </footer>
       <div id="public-box" class="public-box hidden">
-        <p>公开后任何人都能打开。Arweave 上不能撤回。改过正文要再公开一次，会得到新链接。</p>
+        <p>公开后任何人都能打开这篇笔记，也会带上当前这座宫殿。Arweave 上不能撤回。改过之后再公开一次，会得到新链接。</p>
         <label>阅读页
           <input id="public-page" type="text" readonly />
         </label>

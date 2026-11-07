@@ -19,8 +19,10 @@ export function buildBundle(save) {
     world: {
       removed: [...(world.removed || [])],
       placed: [...(world.placed || [])],
+      covers: [...(world.covers || save.covers || [])],
     },
     notes: (save.notes || []).map(normalizeNote).filter((note) => !isEmptyNote(note)),
+    mods: save.mods || null,
   };
 }
 
@@ -32,6 +34,8 @@ export function bundleToSave(bundle) {
     version: 1,
     removed: world.removed || [],
     placed: world.placed || [],
+    covers: world.covers || bundle.covers || [],
+    mods: bundle.mods || null,
     notes: (bundle.notes || []).map(normalizeNote),
     player: bundle.player || null,
     routeId: bundle.routeId || null,
@@ -65,6 +69,8 @@ export function splitWorld(world) {
     }
   }
   if (current.removed.length || current.placed.length || !chunks.length) chunks.push(current);
+  const covers = [...(world?.covers || [])];
+  if (chunks[0]) chunks[0].covers = covers;
   return chunks;
 }
 
@@ -72,6 +78,7 @@ export function joinWorld(chunks) {
   return {
     removed: chunks.flatMap((chunk) => chunk?.removed || []),
     placed: chunks.flatMap((chunk) => chunk?.placed || []),
+    covers: chunks.flatMap((chunk) => chunk?.covers || []),
   };
 }
 

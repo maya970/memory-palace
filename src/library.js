@@ -129,15 +129,29 @@ async function showBundle(bundle, source) {
   showIndex();
 }
 
-function showPublicNote(note, id) {
-  view = { source: 'public', notes: [note], world: { removed: [], placed: [] }, bundle: null };
+function showPublicNote(note, id, world) {
+  const palace = world || note.palace || { removed: [], placed: [] };
+  const hasPalace = (palace.placed?.length || 0) + (palace.removed?.length || 0) > 0;
+  view = {
+    source: 'public',
+    notes: [note],
+    world: palace,
+    bundle: {
+      kind: 'memory-palace',
+      notes: [note],
+      world: palace,
+      player: note.spawn || null,
+    },
+  };
   document.querySelector('#library-index').classList.add('hidden');
-  adoptEl.classList.add('hidden');
+  adoptEl.classList.toggle('hidden', !hasPalace);
+  adoptEl.textContent = hasPalace ? '走进这座宫殿' : '用这份备份覆盖这座宫殿';
   document.querySelector('#note-kicker').textContent = note.cue || '公开笔记';
   document.querySelector('#note-title').textContent = note.title || '未命名';
   document.querySelector('#note-where').textContent = id ? `Arweave · ${id}` : '公开笔记';
   document.querySelector('#note-body').innerHTML = sanitizeHtml(note.html || '<p><br></p>');
   noteEl.classList.remove('hidden');
+  if (hasPalace) drawMap(palace);
 }
 
 async function openNote(entry) {
@@ -161,8 +175,16 @@ async function openNote(entry) {
 async function openRemote(store, id) {
   const manifest = await readStored(store, id);
   if (isPublicNote(manifest)) {
-    showPublicNote(manifest, id);
-    status('这是一篇公开笔记');
+    let palace = manifest.palace || { removed: [], placed: [] };
+    if (Array.isArray(palace)) {
+      const chunks = [];
+      for (const piece of palace) {
+        chunks.push(await readStored(pieceStore(piece, 'arweave'), pieceRef(piece)));
+      }
+      palace = joinWorld(chunks);
+    }
+    showPublicNote(manifest, id, palace);
+    status(palace.placed?.length ? '这是一篇公开笔记，下面是这座宫殿' : '这是一篇公开笔记');
     return;
   }
   if (manifest?.kind !== 'memory-palace') throw new Error('这不是宫殿备份');
@@ -219,6 +241,11 @@ document.querySelector('#library-file').addEventListener('change', async (event)
   }
 });
 adoptEl.addEventListener('click', () => {
+  if (view?.source === 'public' && view.bundle) {
+    writeSave(bundleToSave(view.bundle));
+    window.location.href = '/';
+    return;
+  }
   if (!view?.bundle && view?.source !== 'remote') return;
   const bundle = view.bundle?.notes?.some((note) => note.html) ? view.bundle : null;
   if (!bundle) {

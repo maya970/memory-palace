@@ -161,20 +161,60 @@ function storePalace(data) {
   return { kind: 'palace', name: pack.name, added: true, world: pack.world, spawn: pack.spawn, id: pack.id };
 }
 
+const sessionMods = [];
+
+function rememberSession(result) {
+  if (!result || result.already) return result;
+  sessionMods.push({ name: result.name, kind: result.kind || result.part });
+  return result;
+}
+
+export function pendingSessionMods() {
+  return sessionMods.slice();
+}
+
+export function clearSessionMods() {
+  sessionMods.length = 0;
+}
+
+export function installedUserMods() {
+  return {
+    furniture: readJson(FURN_KEY, []),
+    palaces: readJson(PALACE_KEY, []),
+  };
+}
+
+export function applySavedMods(mods) {
+  if (!mods) return;
+  for (const pack of mods.furniture || []) {
+    if (!Array.isArray(pack.blocks)) continue;
+    for (const block of pack.blocks) installFurnitureBlock(block);
+  }
+  if (mods.palaces?.length) {
+    const all = readJson(PALACE_KEY, []);
+    for (const pack of mods.palaces) {
+      if (pack?.id && !all.some((item) => item.id === pack.id)) all.push(pack);
+    }
+    writeJson(PALACE_KEY, all.slice(0, 24));
+  }
+}
+
 export function importMod(data) {
   if (!data || data.kind !== 'memory-palace-mod') throw new Error('这不是社区模组');
-  if (data.part === 'furniture') return storeFurniture(data);
-  if (data.part === 'palace') return storePalace(data);
+  if (data.part === 'furniture') return rememberSession(storeFurniture(data));
+  if (data.part === 'palace') return rememberSession(storePalace(data));
   if (data.part === 'bundle') {
     const furniture = Array.isArray(data.blocks) && data.blocks.length ? storeFurniture(data) : null;
     const palace = data.world ? storePalace(data) : null;
     if (!furniture && !palace) throw new Error('这份组合包里没有家具也没有建筑');
-    return {
+    const result = {
       kind: 'bundle',
       name: String(data.name || palace?.name || furniture?.name || '组合包').slice(0, 24),
       furniture,
       palace,
     };
+    rememberSession(result);
+    return result;
   }
   throw new Error('还不认识这种模组');
 }

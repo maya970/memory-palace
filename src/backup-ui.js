@@ -1,4 +1,5 @@
 import { buildBundle } from './bundle.js';
+import { clearSessionMods, installedUserMods, pendingSessionMods } from './community.js';
 import { t } from './i18n.js';
 import { recentUploads, uploadBundle } from './remote.js';
 import { accountNeedsExport, createWallets, loadWallets, markAccountExported, walletAddresses, walletFile } from './wallets.js';
@@ -95,7 +96,16 @@ export function createBackup(root, hooks) {
     tell(t('uploading'));
     try {
       const wallets = await ensureWallets();
-      const bundle = buildBundle(hooks.snapshot());
+      const snap = hooks.snapshot();
+      const pending = pendingSessionMods();
+      if (pending.length) {
+        const names = pending.map((item) => item.name).join('、');
+        if (window.confirm(`本次导入了新的模组：${names}。要一起保存进这次上传吗？`)) {
+          snap.mods = installedUserMods();
+          clearSessionMods();
+        }
+      }
+      const bundle = buildBundle(snap);
       const result = await uploadBundle(bundle, wallets, routes, tell);
       const query = result.store === 'walrus' ? `blob=${result.id}` : `tx=${result.id}`;
       const placed = bundle.world.placed?.length || 0;

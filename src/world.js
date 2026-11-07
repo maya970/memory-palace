@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { BLOCKS } from './blocks.js';
-import { furnitureGeometry } from './furniture.js';
+import { furnitureGeometry, surfaceLift } from './furniture.js';
 import { texturesFor } from './textures.js';
 import { buildBase } from './palace.js';
 
@@ -51,6 +51,7 @@ export class World {
     this.index = new Map();
     this.groups = new Map();
     this.shelves = new Set();
+    this.covers = new Map();
     this.dummy = new THREE.Object3D();
     this.wallGeo = wallGeometry();
     this.topGeo = capGeometry(0.5);
@@ -78,6 +79,7 @@ export class World {
     this.groups.clear();
     this.index.clear();
     this.shelves.clear();
+    this.covers.clear();
     this.blocks.clear();
   }
 
@@ -87,6 +89,11 @@ export class World {
       const [x, y, z, type] = item;
       if (!BLOCKS[type]) continue;
       this.blocks.set(keyOf(x, y, z), type);
+    }
+    for (const item of diff.covers || []) {
+      const [x, y, z, type] = item;
+      if (!BLOCKS[type]) continue;
+      this.covers.set(keyOf(x, y, z), type);
     }
   }
 
@@ -106,7 +113,12 @@ export class World {
       const [x, y, z] = key.split(',').map(Number);
       placed.push([x, y, z, type]);
     }
-    return { removed, placed };
+    const covers = [];
+    for (const [key, type] of this.covers) {
+      const [x, y, z] = key.split(',').map(Number);
+      covers.push([x, y, z, type]);
+    }
+    return { removed, placed, covers };
   }
 
   rebuildMeshes() {
@@ -121,7 +133,11 @@ export class World {
     this.shelves.clear();
     for (const [key, type] of this.blocks) {
       const [x, y, z] = key.split(',').map(Number);
-      this.attach(key, type, x, y, z, true);
+      this.attach(key, type, x, y, z, true, 0);
+    }
+    for (const [key, type] of this.covers) {
+      const [x, y, z] = key.split(',').map(Number);
+      this.attach(`c:${key}`, type, x, y, z, true, surfaceLift(BLOCKS[this.blocks.get(key)]));
     }
     for (const group of this.groups.values()) {
       for (const mesh of group.meshes) {
@@ -157,19 +173,19 @@ export class World {
     return group;
   }
 
-  attach(key, type, x, y, z, batched = false) {
+  attach(key, type, x, y, z, batched = false, lift = 0) {
     const group = this.ensureGroup(type);
     if (group.keys.length >= MAX) return false;
     const index = group.keys.length;
     group.keys.push(key);
-    this.index.set(key, { type, index });
-    if (BLOCKS[type]?.noteHost) this.shelves.add(key);
-    this.write(group, index, x, y, z, batched);
+    this.index.set(key, { type, index, lift, x, y, z });
+    if (BLOCKS[type]?.noteHost) this.shelves.add(key.startsWith('c:') ? key.slice(2) : key);
+    this.write(group, index, x, y, z, batched, lift);
     return true;
   }
 
-  write(group, index, x, y, z, batched) {
-    this.dummy.position.set(x + 0.5, y + 0.5, z + 0.5);
+  write(group, index, x, y, z, batched, lift = 0) {
+    this.dummy.position.set(x + 0.5, y + 0.5 + lift, z + 0.5);
     this.dummy.rotation.set(0, 0, 0);
     this.dummy.scale.set(1, 1, 1);
     this.dummy.updateMatrix();
@@ -184,6 +200,17 @@ export class World {
     return this.blocks.get(keyOf(x, y, z)) || null;
   }
 
+  getCover(x, y, z) {
+    return this.covers.get(keyOf(x, y, z)) || null;
+  }
+
+  hostType(x, y, z) {
+    const cover = this.getCover(x, y, z);
+    if (cover && BLOCKS[cover]?.noteHost) return cover;
+    const type = this.get(x, y, z);
+    return BLOCKS[type]?.noteHost ? type : cover || type;
+  }
+
   isSolid(x, y, z) {
     const type = this.blocks.get(keyOf(x, y, z));
     if (!type) return false;
@@ -195,12 +222,30 @@ export class World {
     const prev = this.blocks.get(key) || null;
     if (prev === type) return true;
     if (prev) this.detach(key);
+    if (!type || !BLOCKS[type]?.furnish) {
+      if (this.covers.has(key)) this.setCover(x, y, z, null);
+    }
     if (!type) {
       this.blocks.delete(key);
       return true;
     }
-    if (!this.attach(key, type, x, y, z)) return false;
+    if (!this.attach(key, type, x, y, z, false, 0)) return false;
     this.blocks.set(key, type);
+    return true;
+  }
+
+  setCover(x, y, z, type) {
+    const key = keyOf(x, y, z);
+    const prev = this.covers.get(key) || null;
+    if (prev === type) return true;
+    if (prev) this.detach(`c:${key}`);
+    if (!type) {
+      this.covers.delete(key);
+      return true;
+    }
+    const lift = surfaceLift(BLOCKS[this.blocks.get(key)]);
+    if (!this.attach(`c:${key}`, type, x, y, z, false, lift)) return false;
+    this.covers.set(key, type);
     return true;
   }
 
@@ -212,9 +257,9 @@ export class World {
     const lastKey = group.keys[last];
     if (info.index !== last) {
       group.keys[info.index] = lastKey;
-      this.index.get(lastKey).index = info.index;
-      const [x, y, z] = lastKey.split(',').map(Number);
-      this.write(group, info.index, x, y, z, false);
+      const moved = this.index.get(lastKey);
+      moved.index = info.index;
+      this.write(group, info.index, moved.x, moved.y, moved.z, false, moved.lift || 0);
     }
     group.keys.pop();
     this.index.delete(key);

@@ -205,7 +205,7 @@ export async function loadRemote(store, id) {
 }
 
 export function isPublicNote(data) {
-  return data?.kind === 'memory-palace-note' && data.public === true;
+  return data?.public === true && (data?.kind === 'memory-palace-note' || data?.kind === 'memory-palace-public');
 }
 
 export function publicNoteUrl(id) {
@@ -216,21 +216,37 @@ export function publicArweaveUrl(id) {
   return `https://arweave.net/${id}`;
 }
 
-export async function publishPublicNote(note) {
+export async function publishPublicNote(note, palace) {
   if (isEmptyNote(note)) throw new Error('空的笔记不能公开');
   const wallets = loadWallets() || (await createWallets(), loadWallets());
   if (!wallets?.arweave?.jwk) throw new Error('先创建或导入账户');
-  const payload = {
+  const world = {
+    removed: palace?.removed || [],
+    placed: palace?.placed || [],
+  };
+  const body = {
     version: 1,
-    kind: 'memory-palace-note',
+    kind: 'memory-palace-public',
     public: true,
     id: note.id,
     title: note.title || '',
     cue: note.cue || '',
     order: note.order,
+    shelf: note.shelf || null,
     html: sanitizeHtml(note.html || '<p><br></p>'),
     updated: note.updated || Date.now(),
+    spawn: palace?.player || palace?.spawn || null,
   };
+  const combined = { ...body, palace: world };
+  let payload = combined;
+  if (byteLength(JSON.stringify(combined)) > FREE_BYTES) {
+    const chunks = [];
+    for (const chunk of splitWorld(world)) {
+      const ref = await uploadArweave(JSON.stringify(chunk), wallets.arweave.jwk, 'public-palace-world');
+      chunks.push({ store: 'arweave', ref });
+    }
+    payload = { ...body, palace: chunks };
+  }
   const id = await uploadArweave(JSON.stringify(payload), wallets.arweave.jwk, 'public-note');
   return {
     id,

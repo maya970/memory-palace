@@ -24,6 +24,7 @@ export function createEditor(root, hooks) {
   let savedRange = null;
   let timer = 0;
   let publishing = false;
+  let mode = 'shelf';
 
   function rememberRange() {
     const sel = document.getSelection();
@@ -289,6 +290,13 @@ export function createEditor(root, hooks) {
     }
   });
 
+  function paintMode() {
+    const compose = root.querySelector('#compose-actions');
+    compose.classList.toggle('hidden', mode === 'shelf');
+    root.querySelector('#note-save-bag').classList.toggle('hidden', mode !== 'compose');
+    root.querySelector('#note-detach').classList.toggle('hidden', mode !== 'shelf');
+  }
+
   function paintPublic() {
     const id = note?.publicRef;
     publicBox.classList.toggle('hidden', !id);
@@ -304,6 +312,14 @@ export function createEditor(root, hooks) {
   }
 
   root.querySelector('#book-close').addEventListener('click', () => hooks.onClose());
+  root.querySelector('#note-save-drop').addEventListener('click', () => {
+    pull();
+    hooks.onSaveDrop?.(note);
+  });
+  root.querySelector('#note-save-bag').addEventListener('click', () => {
+    pull();
+    hooks.onSaveBag?.(note);
+  });
   root.querySelector('#note-detach').addEventListener('click', () => {
     pull();
     hooks.onDetach(note);
@@ -351,8 +367,9 @@ export function createEditor(root, hooks) {
   return {
     isOpen: () => !root.classList.contains('hidden'),
     note: () => note,
-    open(next, location) {
+    open(next, location, nextMode = 'shelf') {
       note = next;
+      mode = nextMode;
       title.value = next.title || '';
       cue.value = next.cue || '';
       order.value = next.order == null ? '' : String(next.order);
@@ -360,7 +377,8 @@ export function createEditor(root, hooks) {
       loc.textContent = location;
       root.classList.remove('hidden');
       tablePop.classList.add('hidden');
-      status.textContent = '写下来就会记住';
+      status.textContent = mode === 'shelf' ? '写下来就会记住' : '写完后选一种保存方式';
+      paintMode();
       paintPublic();
       refreshMeta();
       window.setTimeout(() => {
@@ -371,8 +389,10 @@ export function createEditor(root, hooks) {
     close() {
       if (note) pull();
       root.classList.add('hidden');
+      mode = 'shelf';
       return note;
     },
+    mode: () => mode,
     isEmpty: () => (note ? isEmptyNote({ ...note, title: title.value, cue: cue.value, order: order.value, html: page.innerHTML }) : true),
   };
 }

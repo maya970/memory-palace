@@ -18,7 +18,24 @@ export function box(placed, x0, y0, z0, x1, y1, z1, type, skip) {
 export function room(placed, x0, z0, x1, z1, wall, floor, roof, height = 4) {
   box(placed, x0, 0, z0, x1, 0, z1, floor);
   box(placed, x0, 1, z0, x1, height - 1, z1, wall, (x, y, z) => x > x0 && x < x1 && z > z0 && z < z1);
+  for (let x = x0 + 2; x <= x1 - 2; x += 3) {
+    if (height >= 3) {
+      add(placed, x, 2, z0, 'glass');
+      add(placed, x, 2, z1, 'glass');
+    }
+  }
+  for (let z = z0 + 2; z <= z1 - 2; z += 3) {
+    if (height >= 3) {
+      add(placed, x0, 2, z, 'glass');
+      add(placed, x1, 2, z, 'glass');
+    }
+  }
+  box(placed, x0 - 1, height, z0 - 1, x1 + 1, height, z1 + 1, roof, (x, _y, z) => x > x0 && x < x1 && z > z0 && z < z1);
   box(placed, x0, height, z0, x1, height, z1, roof);
+  add(placed, x0 + 1, 1, z0 + 1, wall);
+  add(placed, x1 - 1, 1, z0 + 1, wall);
+  add(placed, x0 + 1, 1, z1 - 1, wall);
+  add(placed, x1 - 1, 1, z1 - 1, wall);
 }
 
 export function door(placed, x, y0, y1, z, fill = null) {
@@ -44,16 +61,18 @@ export function disk(placed, cx, cz, y, r, type, hole = 0) {
 export function kit(placed, x = -2, z = 0) {
   add(placed, x, 1, z, 'bookshelf');
   add(placed, x + 2, 1, z, 'writing_desk');
-  add(placed, x + 2, 2, z, 'open_notebook');
+  if (!placed.covers) placed.covers = [];
+  placed.covers.push([x + 2, 1, z, 'open_notebook']);
 }
 
 export function palace(id, name, lead, placed, spawn, credit) {
+  const covers = placed.covers || [];
   return {
     id,
     name,
     lead,
     credit: credit || '宫殿自制。风格取自已进入公有领域的历史建筑类型，不是某座现代测绘或商标地标。',
     spawn: spawn || SOUTH,
-    world: { removed: [], placed },
+    world: { removed: [], placed, covers },
   };
 }

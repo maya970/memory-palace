@@ -448,6 +448,14 @@ body.account-pending #compass { top: 58px; }
 }
 .public-box button { width: auto; justify-self: start; }
 
+.compose-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.compose-actions.hidden { display: none; }
+.compose-actions button { width: auto; }
+
 .nametag {
   padding: 4px 8px 5px;
   background: rgba(20, 12, 8, 0.78);

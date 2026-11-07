@@ -74,3 +74,7 @@ export function walletFile() {
   if (!wallets) return null;
   return JSON.stringify(wallets, null, 2);
 }
+
+export function clearWallets() {
+  localStorage.removeItem(KEY);
+}

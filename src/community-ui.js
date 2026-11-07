@@ -70,7 +70,6 @@ export function createCommunity(root, hooks) {
       hooks.onToast(error?.message || '还没有自己的家具');
     }
   });
-  root.querySelector('#community-write').addEventListener('click', () => hooks.onWriteFirst());
   file.addEventListener('change', async (event) => {
     const picked = event.target.files?.[0];
     event.target.value = '';

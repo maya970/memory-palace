@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { CSS2DObject, CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { BLOCKS, isNoteHost } from './blocks.js';
-import { canPlaceOn } from './furniture.js';
+import { canPlaceOn, sitsOnFurniture, surfaceLift } from './furniture.js';
 import { createInventory } from './inventory.js';
 import { iconFor, loadTextures } from './textures.js';
 import { SPAWN } from './palace.js';
@@ -25,10 +25,10 @@ import { publishPublicNote } from './remote.js';
 import { createDocs } from './docs.js';
 import { createGate } from './gate.js';
 import { bundleToSave } from './bundle.js';
-import { accountNeedsExport, loadWallets, markAccountExported, walletFile } from './wallets.js';
+import { accountNeedsExport, clearWallets, loadWallets, markAccountExported, walletFile } from './wallets.js';
 import { applyI18n, t } from './i18n.js';
 import { createCommunity } from './community-ui.js';
-import { dropNoteInRoom, hydrateMods } from './community.js';
+import { applySavedMods, dropNoteInRoom, hydrateMods } from './community.js';
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const dirs = ['北', '东北', '东', '东南', '南', '西南', '西', '西北'];
@@ -94,16 +94,17 @@ const clouds = makeClouds();
 scene.add(clouds);
 
 hydrateMods();
+const save = loadSave();
+applySavedMods(save?.mods);
 loadTextures();
 const world = new World(scene);
 const particles = new Particles(scene);
-const save = loadSave();
 world.init(save);
 
 let notes = (save?.notes || buildStarterNotes()).map(normalizeNote);
 for (const note of notes) {
   const pos = parseShelf(note.shelf);
-  if (!pos || !isNoteHost(world.get(pos.x, pos.y, pos.z))) note.shelf = null;
+  if (!pos || !isNoteHost(world.hostType(pos.x, pos.y, pos.z))) note.shelf = null;
 }
 
 const player = new Player(SPAWN);
@@ -174,10 +175,12 @@ const editor = createEditor(document.querySelector('#editor'), {
   onToast: toast,
   async onPublish(note) {
     const existed = Boolean(loadWallets());
-    const published = await publishPublicNote(note);
+    const published = await publishPublicNote(note, snapshot());
     if (!existed) syncAccountBanner();
     return published;
   },
+  onSaveDrop: saveWriteDrop,
+  onSaveBag: saveWriteBag,
 });
 
 function syncAccountBanner() {
@@ -215,7 +218,6 @@ const community = createCommunity(communityEl, {
   download,
   onToast: toast,
   onClose: closeCommunity,
-  onWriteFirst: openWriteFirst,
   onFurnitureInstalled(result) {
     inventory.refresh();
     toast(result.already ? '官方家居已经在背包里' : `已经装上「${result.name}」`);
@@ -229,12 +231,14 @@ const gate = createGate(startEl, {
   hasLocal: () => hasSave(),
   onRestore: restoreAndEnter,
   onAccount: syncAccountBanner,
+  onWriteFirst: openWriteFirst,
   onIntro() {
     sessionStorage.removeItem('memory-palace-enter');
     introEl.classList.remove('hidden');
   },
 });
 applyI18n();
+gate.showHome();
 
 resize();
 window.addEventListener('resize', resize);
@@ -288,9 +292,8 @@ document.querySelector('#pause-storage').addEventListener('click', openBackup);
 document.querySelector('#pause-docs').addEventListener('click', openDocs);
 document.querySelector('#pause-community').addEventListener('click', openCommunity);
 document.querySelector('#pause-write').addEventListener('click', openWriteFirst);
+document.querySelector('#pause-logout').addEventListener('click', logout);
 document.querySelector('#pause-help').addEventListener('click', openHelp);
-document.querySelector('#gate-community').addEventListener('click', openCommunity);
-document.querySelector('#gate-write').addEventListener('click', openWriteFirst);
 document.querySelector('#help-close').addEventListener('click', () => {
   helpEl.classList.add('hidden');
   if (started) lock();
@@ -400,7 +403,7 @@ window.addEventListener('keydown', (event) => {
   if (event.code === 'KeyF' && started) {
     event.preventDefault();
     const hit = aimed;
-    if (hit && isNoteHost(hit.type)) openShelf(hit.x, hit.y, hit.z);
+    if (hit && isNoteHost(world.hostType(hit.x, hit.y, hit.z))) openShelf(hit.x, hit.y, hit.z);
     else toast('对准书架、书桌、床、衣柜，或桌上摊开的笔记');
     return;
   }
@@ -496,11 +499,13 @@ function updateAim(locked) {
   }
   outline.visible = true;
   outline.position.set(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5);
-  const openShelfInstead = isNoteHost(hit.type) && !input.sneak;
+  const cover = world.getCover(hit.x, hit.y, hit.z);
+  const host = cover && isNoteHost(cover) ? cover : hit.type;
+  const openShelfInstead = isNoteHost(host) && !input.sneak;
   promptEl.textContent = openShelfInstead
-    ? `F 或右键　打开${BLOCKS[hit.type].name}`
-    : `${BLOCKS[hit.type].name}　左键拆除　右键放置`;
-  if (isNoteHost(hit.type) && input.sneak) promptEl.textContent = '潜行中　右键会把方块放在表面上';
+    ? `F 或右键　打开${BLOCKS[host].name}`
+    : `${BLOCKS[cover || hit.type].name}　左键拆除　右键放置`;
+  if (isNoteHost(host) && input.sneak) promptEl.textContent = '潜行中　右键会把方块贴在表面上';
   if (openShelfInstead) {
     ghost.visible = false;
     return;
@@ -511,21 +516,40 @@ function updateAim(locked) {
     promptEl.textContent = '手里是空的　按 E 把方块拖进物品栏';
     return;
   }
-  const x = hit.x + hit.nx;
-  const y = hit.y + hit.ny;
-  const z = hit.z + hit.nz;
-  if (!canPlace(x, y, z, held) || !canPlaceOn(BLOCKS[held], BLOCKS[hit.type], hit.nx, hit.ny, hit.nz)) {
+  const spot = placeSpot(hit, held);
+  if (!spot || !canPlaceOn(BLOCKS[held], BLOCKS[hit.type], hit.nx, hit.ny, hit.nz)) {
     ghost.visible = false;
     return;
   }
   ghost.visible = true;
-  ghost.position.set(x + 0.5, y + 0.5, z + 0.5);
+  ghost.position.set(spot.x + 0.5, spot.y + 0.5 + (spot.cover ? surfaceLift(BLOCKS[hit.type]) : 0), spot.z + 0.5);
   ghost.material.color.set(BLOCKS[held].color);
 }
 
 function breakAimed() {
   if (!aimed || !BLOCKS[aimed.type]?.breakable) return;
-  const { x, y, z, type } = aimed;
+  const { x, y, z } = aimed;
+  const cover = world.getCover(x, y, z);
+  if (cover) {
+    const note = isNoteHost(cover) ? notes.find((item) => item.shelf === shelfKey(x, y, z)) : null;
+    const noteId = note && !isEmptyNote(note) ? note.id : null;
+    if (!inventory.collect(cover, noteId)) {
+      toast('背包满了，这块先留在原地');
+      return;
+    }
+    if (note) {
+      if (noteId) {
+        note.shelf = null;
+        toast(`《${note.title || note.cue || '未命名笔记'}》进了背包`);
+      } else notes = notes.filter((item) => item !== note);
+    }
+    world.setCover(x, y, z, null);
+    particles.burst(x, y, z, BLOCKS[cover].color);
+    sfx.break();
+    saveSoon();
+    return;
+  }
+  const type = aimed.type;
   const note = isNoteHost(type) ? notes.find((item) => item.shelf === shelfKey(x, y, z)) : null;
   const noteId = note && !isEmptyNote(note) ? note.id : null;
   if (!inventory.collect(type, noteId)) {
@@ -549,26 +573,39 @@ function breakAimed() {
 
 function useAimed() {
   if (!aimed) return;
-  if (isNoteHost(aimed.type) && !input.sneak) {
+  const host = world.hostType(aimed.x, aimed.y, aimed.z);
+  if (isNoteHost(host) && !input.sneak) {
     if (!shelfOpenedThisHold) {
       shelfOpenedThisHold = true;
       openShelf(aimed.x, aimed.y, aimed.z);
     }
     return;
   }
-  const x = aimed.x + aimed.nx;
-  const y = aimed.y + aimed.ny;
-  const z = aimed.z + aimed.nz;
   const held = inventory.selectedType();
-  if (!held || !canPlace(x, y, z, held) || !canPlaceOn(BLOCKS[held], BLOCKS[aimed.type], aimed.nx, aimed.ny, aimed.nz)) return;
-  if (!world.setBlock(x, y, z, held)) {
+  const spot = placeSpot(aimed, held);
+  if (!held || !spot || !canPlaceOn(BLOCKS[held], BLOCKS[aimed.type], aimed.nx, aimed.ny, aimed.nz)) return;
+  const ok = spot.cover ? world.setCover(spot.x, spot.y, spot.z, held) : world.setBlock(spot.x, spot.y, spot.z, held);
+  if (!ok) {
     toast('这种方块已经放得太多了');
     return;
   }
   const spent = inventory.consumeSelected();
-  if (spent?.noteId) bindShelfNote(spent.noteId, x, y, z);
+  if (spent?.noteId) bindShelfNote(spent.noteId, spot.x, spot.y, spot.z);
   sfx.place();
   saveSoon();
+}
+
+function placeSpot(hit, held) {
+  if (!hit || !held) return null;
+  const spec = BLOCKS[held];
+  if (sitsOnFurniture(spec) && hit.ny === 1 && BLOCKS[hit.type]?.furnish && !world.getCover(hit.x, hit.y, hit.z)) {
+    return { x: hit.x, y: hit.y, z: hit.z, cover: true };
+  }
+  const x = hit.x + hit.nx;
+  const y = hit.y + hit.ny;
+  const z = hit.z + hit.nz;
+  if (!canPlace(x, y, z, held)) return null;
+  return { x, y, z, cover: false };
 }
 
 function canPlace(x, y, z, held) {
@@ -593,17 +630,57 @@ function openShelf(x, y, z) {
 
 function closeEditor() {
   if (!editor.isOpen()) return;
+  const mode = editor.mode();
   const note = editor.close();
-  if (isEmptyNote(note)) {
-    notes = notes.filter((item) => item.id !== note.id);
-    dropOnClose = false;
-  } else if (dropOnClose && !note.shelf) {
-    dropOnClose = false;
-    const cell = dropNoteInRoom(world, notes, note);
-    if (!cell) toast('头顶没有遮挡，不能投放。先点进一座现成宫殿，或走到东南角那间小书房。');
-    else toast(`已经放到 ${cell.x}, ${cell.y}, ${cell.z}，进去后自己整理`);
-    community.refresh();
+  dropOnClose = false;
+  if (mode === 'drop' || mode === 'compose') {
+    if (started) lock();
+    return;
   }
+  if (isEmptyNote(note)) notes = notes.filter((item) => item.id !== note.id);
+  saveSoon();
+  if (started) lock();
+}
+
+function keepDraft(note) {
+  if (!notes.some((item) => item.id === note.id)) notes.push(note);
+}
+
+function saveWriteDrop() {
+  if (!editor.isOpen()) return;
+  const note = editor.close();
+  dropOnClose = false;
+  if (isEmptyNote(note)) {
+    toast('空的笔记没有保存');
+    if (started) lock();
+    return;
+  }
+  keepDraft(note);
+  const cell = dropNoteInRoom(world, notes, note);
+  if (!cell) toast('头顶没有遮挡，不能投放。先进入一座有屋顶的宫殿。');
+  else toast(`已经放到 ${cell.x}, ${cell.y}, ${cell.z}，进去后自己整理`);
+  community.refresh();
+  saveSoon();
+  if (started) lock();
+}
+
+function saveWriteBag() {
+  if (!editor.isOpen()) return;
+  const note = editor.close();
+  dropOnClose = false;
+  if (isEmptyNote(note)) {
+    toast('空的笔记没有保存');
+    if (started) lock();
+    return;
+  }
+  keepDraft(note);
+  note.shelf = null;
+  if (!inventory.collect('open_notebook', note.id)) {
+    toast('背包满了，这篇还在文稿里，没有收进去');
+    editor.open(note, '背包满了', 'compose');
+    return;
+  }
+  toast(`《${note.title || note.cue || '未命名笔记'}》进了背包`);
   saveSoon();
   if (started) lock();
 }
@@ -611,7 +688,9 @@ function closeEditor() {
 function detachOpenNote(note) {
   const pos = parseShelf(note.shelf);
   const noteId = isEmptyNote(note) ? null : note.id;
-  const host = pos && isNoteHost(world.get(pos.x, pos.y, pos.z)) ? world.get(pos.x, pos.y, pos.z) : 'open_notebook';
+  const cover = pos ? world.getCover(pos.x, pos.y, pos.z) : null;
+  const block = pos ? world.get(pos.x, pos.y, pos.z) : null;
+  const host = isNoteHost(cover) ? cover : isNoteHost(block) ? block : 'open_notebook';
   if (!inventory.collect(host, noteId)) {
     toast('背包满了，这一格还在原地');
     return;
@@ -623,7 +702,8 @@ function detachOpenNote(note) {
     notes = notes.filter((item) => item.id !== note.id);
     if (routeId === note.id) routeId = null;
   }
-  if (pos && isNoteHost(world.get(pos.x, pos.y, pos.z))) world.setBlock(pos.x, pos.y, pos.z, null);
+  if (pos && isNoteHost(cover)) world.setCover(pos.x, pos.y, pos.z, null);
+  else if (pos && isNoteHost(block)) world.setBlock(pos.x, pos.y, pos.z, null);
   editor.close();
   saveSoon();
   lock();
@@ -700,6 +780,7 @@ function snapshot() {
     version: 1,
     removed: diff.removed,
     placed: diff.placed,
+    covers: diff.covers,
     notes,
     player: { x: player.x, y: player.y, z: player.z, yaw: player.yaw, pitch: player.pitch },
     routeId,
@@ -867,10 +948,19 @@ function openWriteFirst() {
   community.close();
   dropOnClose = true;
   const note = createNote(null);
-  notes.push(note);
   pauseEl.classList.add('hidden');
   if (started) unlockForUi();
-  editor.open(note, '先写入。关闭这一页就会存下来，并放到有屋顶的房间里');
+  const mode = started ? 'compose' : 'drop';
+  const loc = started
+    ? '写完后可以收进背包，或随机放到有屋顶的房间'
+    : '点保存后随机放到有屋顶的房间，不进背包';
+  editor.open(note, loc, mode);
+}
+
+function logout() {
+  clearWallets();
+  sessionStorage.removeItem('memory-palace-enter');
+  location.reload();
 }
 
 function applyPalacePreset(preset) {
@@ -878,7 +968,7 @@ function applyPalacePreset(preset) {
   if (preset.spawn) player.place(preset.spawn);
   for (const note of notes) {
     const pos = parseShelf(note.shelf);
-    if (!pos || !isNoteHost(world.get(pos.x, pos.y, pos.z))) note.shelf = null;
+    if (!pos || !isNoteHost(world.hostType(pos.x, pos.y, pos.z))) note.shelf = null;
   }
   settleCarriedNotes();
   saveSoon();
