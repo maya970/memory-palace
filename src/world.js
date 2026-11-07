@@ -301,7 +301,7 @@ export class World {
 
     for (let i = 0; i < 48; i++) {
       const type = this.blocks.get(keyOf(x, y, z));
-      if (type && dist <= maxDist) {
+      if (type && dist <= maxDist && (BLOCKS[type].solid !== false || BLOCKS[type].noteHost)) {
         return { x, y, z, type, dist, nx: -faceX, ny: -faceY, nz: -faceZ };
       }
       if (tMaxX < tMaxY && tMaxX < tMaxZ) {

@@ -1,5 +1,5 @@
 import specText from '../community-mod.md?raw';
-import { catalog, dropHistory, furnitureExport, importMod, officialFurniturePack, palaceExport } from './community.js';
+import { catalog, dropHistory, furnitureExport, importMod, officialFurniturePack, palaceExport, searchCatalog } from './community.js';
 import { palaceById } from './presets.js';
 
 function escapeHtml(value) {
@@ -11,45 +11,83 @@ function escapeHtml(value) {
 export function createCommunity(root, hooks) {
   const list = root.querySelector('#community-list');
   const drops = root.querySelector('#drop-list');
+  const empty = root.querySelector('#community-empty');
+  const count = root.querySelector('#community-count');
+  const search = root.querySelector('#community-search');
   const file = root.querySelector('#community-file');
-  let tab = 'palace';
+  const dropPane = root.querySelector('#community-drops');
+  const resultPane = root.querySelector('#community-results');
+  let source = 'all';
+  let part = 'all';
+  let view = 'mods';
 
   function paint() {
-    root.querySelectorAll('[data-tab]').forEach((button) => {
-      button.classList.toggle('on', button.dataset.tab === tab);
+    root.querySelectorAll('[data-source]').forEach((button) => {
+      button.classList.toggle('on', button.dataset.source === source);
     });
-    const items = catalog().filter((item) => {
-      if (tab === 'palace') return item.part === 'palace';
-      if (tab === 'furniture') return item.part === 'furniture';
-      return false;
+    root.querySelectorAll('[data-part]').forEach((button) => {
+      button.classList.toggle('on', button.dataset.part === part);
     });
-    list.innerHTML = items.map((item) => `<article class="community-card">
-      <div>
-        <p class="apple-kicker">${item.official ? '官方' : escapeHtml(item.author || '玩家')}</p>
-        <h3>${escapeHtml(item.name)}</h3>
-        <p>${escapeHtml(item.lead || item.credit || '')}</p>
-      </div>
+    root.querySelectorAll('[data-view]').forEach((button) => {
+      button.classList.toggle('on', button.dataset.view === view);
+    });
+    const showingDrops = view === 'drops';
+    dropPane.classList.toggle('hidden', !showingDrops);
+    resultPane.classList.toggle('hidden', showingDrops);
+    search.disabled = showingDrops;
+
+    if (showingDrops) {
+      const rows = dropHistory();
+      count.textContent = `${rows.length} 条投放`;
+      drops.innerHTML = rows.length
+        ? rows.map((row) => `<button type="button" class="community-drop" data-goto="${row.x},${row.y},${row.z}">
+            <strong>${escapeHtml(row.title || row.cue || '未命名')}</strong>
+            <span>${row.x}, ${row.y}, ${row.z}</span>
+          </button>`).join('')
+        : '';
+      empty.classList.toggle('hidden', rows.length > 0);
+      empty.textContent = '还没有先写入再投放的笔记。';
+      return;
+    }
+
+    const items = searchCatalog(search.value, source, part);
+    count.textContent = `${items.length} 个模组`;
+    list.innerHTML = items.map((item) => `<article class="mods-card">
+      <p class="apple-kicker">${item.official ? '官方' : '玩家'} · ${item.part === 'palace' ? '宫殿' : '家具'} · ${escapeHtml(item.author || '未署名')}</p>
+      <h3>${escapeHtml(item.name)}</h3>
+      <p>${escapeHtml(item.lead || item.credit || '')}</p>
       <div class="community-actions">
         ${item.part === 'palace'
           ? `<button type="button" data-enter="${escapeHtml(item.id)}">进入这座宫殿</button>`
           : `<button type="button" data-furn="${escapeHtml(item.id)}">${item.official ? '已在背包里' : '装上这包家具'}</button>`}
         <button type="button" class="ghost" data-share="${escapeHtml(item.id)}">导出</button>
       </div>
-    </article>`).join('') || '<p class="apple-lead">还没有这一类模组。</p>';
-
-    const rows = dropHistory();
-    drops.innerHTML = rows.length
-      ? rows.map((row) => `<button type="button" class="community-drop" data-goto="${row.x},${row.y},${row.z}">
-          <strong>${escapeHtml(row.title || row.cue || '未命名')}</strong>
-          <span>${row.x}, ${row.y}, ${row.z}</span>
-        </button>`).join('')
-      : '<p class="apple-lead">还没有先写入再投放的笔记。</p>';
+    </article>`).join('');
+    empty.classList.toggle('hidden', items.length > 0);
+    empty.textContent = search.value.trim()
+      ? '没有对上这个检索。换个词，或改成「玩家模组」看自己导入的。'
+      : '这一类还是空的。导入一份 JSON，就会出现在玩家模组里。';
   }
 
   root.querySelector('#community-close').addEventListener('click', () => hooks.onClose());
-  root.querySelectorAll('[data-tab]').forEach((button) => {
+  search.addEventListener('input', paint);
+  root.querySelectorAll('[data-source]').forEach((button) => {
     button.addEventListener('click', () => {
-      tab = button.dataset.tab;
+      view = 'mods';
+      source = button.dataset.source;
+      paint();
+    });
+  });
+  root.querySelectorAll('[data-part]').forEach((button) => {
+    button.addEventListener('click', () => {
+      view = 'mods';
+      part = button.dataset.part;
+      paint();
+    });
+  });
+  root.querySelectorAll('[data-view]').forEach((button) => {
+    button.addEventListener('click', () => {
+      view = button.dataset.view;
       paint();
     });
   });
@@ -76,12 +114,15 @@ export function createCommunity(root, hooks) {
     if (!picked) return;
     try {
       const result = importMod(JSON.parse(await picked.text()));
+      view = 'mods';
+      source = 'player';
+      part = result.kind === 'furniture' ? 'furniture' : result.kind === 'palace' ? 'palace' : 'all';
       paint();
       if (result.kind === 'furniture') hooks.onFurnitureInstalled?.(result);
-      else if (result.kind === 'palace') hooks.onToast(`「${result.name}」已加入社区，点进入这座宫殿`);
+      else if (result.kind === 'palace') hooks.onToast(`「${result.name}」已加入玩家模组，检索后点进入`);
       else {
         if (result.furniture) hooks.onFurnitureInstalled?.(result.furniture);
-        hooks.onToast(`「${result.name}」已加入社区`);
+        hooks.onToast(`「${result.name}」已加入玩家模组`);
       }
     } catch (error) {
       hooks.onToast(error?.message || '这个模组打不开');
@@ -127,8 +168,10 @@ export function createCommunity(root, hooks) {
   return {
     isOpen: () => !root.classList.contains('hidden'),
     open() {
+      view = 'mods';
       paint();
       root.classList.remove('hidden');
+      search.focus();
     },
     close() {
       root.classList.add('hidden');

@@ -78,30 +78,53 @@
     </nav>
   </div>
 
-  <div id="community" class="overlay apple-shade hidden">
-    <section class="apple-sheet wide">
-      <header class="apple-head">
-        <h2>社区模组</h2>
+  <div id="community" class="overlay mods-page hidden">
+    <div class="mods-shell">
+      <header class="mods-head">
+        <div>
+          <p class="apple-kicker">社区</p>
+          <h2>检索模组</h2>
+        </div>
+        <label class="mods-search">
+          <span>检索</span>
+          <input id="community-search" type="search" placeholder="名称、作者、说明" autocomplete="off" />
+        </label>
+        <p id="community-count" class="mods-count">0 个模组</p>
         <button id="community-close" type="button">关闭</button>
       </header>
-      <p class="apple-lead">建筑和家具都是独立的一份 JSON，可以分开导入、分开导出。把细则交给 AI，或自己在岛上搭好再导出。导入后会出现在下面的列表里，宫殿要再点「进入这座宫殿」才会铺进世界。</p>
-      <div class="segment">
-        <button type="button" data-tab="palace" class="on">现成宫殿</button>
-        <button type="button" data-tab="furniture">家具包</button>
-      </div>
-      <div class="apple-list community-toolbar">
-        <button id="community-import" type="button">导入模组</button>
-        <button id="community-spec" type="button">给 AI 的细则</button>
-        <button id="community-export-palace" type="button">导出这座宫殿</button>
-        <button id="community-export-furniture" type="button">导出官方家居</button>
-        <button id="community-export-my-furniture" type="button">导出我的家具</button>
+      <div class="mods-body">
+        <aside class="mods-filters">
+          <p class="mods-label">来源</p>
+          <button type="button" data-source="all" class="on">全部</button>
+          <button type="button" data-source="official">官方模组</button>
+          <button type="button" data-source="player">玩家模组</button>
+          <p class="mods-label">类型</p>
+          <button type="button" data-part="all" class="on">全部</button>
+          <button type="button" data-part="palace">宫殿</button>
+          <button type="button" data-part="furniture">家具</button>
+          <p class="mods-label">其它</p>
+          <button type="button" data-view="mods" class="on">模组目录</button>
+          <button type="button" data-view="drops">投放记录</button>
+          <p class="mods-label">文件</p>
+          <button id="community-import" type="button">导入模组</button>
+          <button id="community-spec" type="button">给 AI 的细则</button>
+          <button id="community-export-palace" type="button">导出这座宫殿</button>
+          <button id="community-export-furniture" type="button">导出官方家居</button>
+          <button id="community-export-my-furniture" type="button">导出我的家具</button>
+        </aside>
+        <section class="mods-main">
+          <div id="community-results">
+            <div id="community-list" class="mods-grid"></div>
+          </div>
+          <div id="community-drops" class="hidden">
+            <p class="apple-lead">先写再存储的笔记，只会落在头顶有方块的房间里。点一条可以走过去。</p>
+            <div id="drop-list"></div>
+          </div>
+          <p id="community-empty" class="apple-lead hidden">这一类还是空的。</p>
+        </section>
       </div>
       <input id="community-file" type="file" accept="application/json,.json" hidden />
-      <div id="community-list"></div>
-      <h3 class="community-sub">投放记录</h3>
-      <p class="apple-lead">先写再存储的笔记，只会落在头顶有方块的房间里。点一条可以去那里整理。</p>
-      <div id="drop-list"></div>
-    </section>
+    </div>
   </div>
 
   <div id="help" class="overlay hidden">
@@ -118,7 +141,7 @@
         </section>
         <section>
           <h3>位点</h3>
-          <p>对准书架、书桌、床、衣柜，或摊开的笔记，按 F 或右键打开。按住 Shift 再右键，才会把手里的东西贴到表面上。</p>
+          <p>对准书架、摊开的笔记或一叠信，按 F 或右键打开。桌子、床、衣柜只是家具，要把笔记本放到桌面上再打开。按住 Shift 再右键，才会把手里的东西贴到表面上。</p>
           <p>桌布床单仍铺在桌面或床上。笔记、笔、信、茶杯可以贴在地面、墙面、床沿、柜侧，不限于桌面。拆掉写过字的那一格，笔记会一起进背包。</p>
         </section>
         <section>
@@ -128,7 +151,7 @@
         </section>
         <section>
           <h3>存储</h3>
-          <p>按 Esc 会出现鼠标，并询问要不要上传。B 打开个人存储信息，L 用表格查看全部文稿。登录页和 Esc 里有社区模组：官方家居、现成宫殿、导入导出。也可以先写一篇，存储后会丢进有屋顶的房间，投放记录能找到它。打开一篇笔记后可以「公开这篇」，会生成一个 Arweave 链接。</p>
+          <p>按 Esc 会出现鼠标，并询问要不要上传。B 打开个人存储信息，L 用表格查看全部文稿。点「社区模组」会打开检索页：可按官方 / 玩家、宫殿 / 家具筛选，也能按名称搜索自己导入的包。也可以先写一篇，存储后会丢进有屋顶的房间。打开一篇笔记后可以「公开这篇」，会生成一个 Arweave 链接。</p>
         </section>
       </div>
     </div>

@@ -4,7 +4,7 @@ import { BLOCKS, isNoteHost } from './blocks.js';
 import { canPlaceOn, sitsOnFurniture, surfaceLift } from './furniture.js';
 import { createInventory } from './inventory.js';
 import { iconFor, loadTextures } from './textures.js';
-import { SPAWN } from './palace.js';
+import { BUILD_MAX, BUILD_MIN, SPAWN, Y_MAX, Y_MIN } from './palace.js';
 import { World, Particles } from './world.js';
 import { Player, blockHitsPlayer } from './player.js';
 import { hasSave, loadSave, writeSave } from './storage.js';
@@ -609,7 +609,7 @@ function placeSpot(hit, held) {
 }
 
 function canPlace(x, y, z, held) {
-  if (x < -64 || x > 64 || z < -64 || z > 64 || y < -2 || y > 32) return false;
+  if (x < BUILD_MIN || x > BUILD_MAX || z < BUILD_MIN || z > BUILD_MAX || y < Y_MIN || y > Y_MAX) return false;
   if (world.get(x, y, z)) return false;
   if (BLOCKS[held]?.solid !== false && blockHitsPlayer(x, y, z, player.x, player.y, player.z)) return false;
   return true;

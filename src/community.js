@@ -64,6 +64,22 @@ export function catalog() {
   ];
 }
 
+function haystack(item) {
+  return `${item.name || ''} ${item.author || ''} ${item.lead || ''} ${item.credit || ''} ${item.id || ''}`.toLowerCase();
+}
+
+export function searchCatalog(query, source, part) {
+  const q = String(query || '').trim().toLowerCase();
+  return catalog().filter((item) => {
+    if (source === 'official' && !item.official) return false;
+    if (source === 'player' && item.official) return false;
+    if (part === 'palace' && item.part !== 'palace') return false;
+    if (part === 'furniture' && item.part !== 'furniture') return false;
+    if (q && !haystack(item).includes(q)) return false;
+    return true;
+  });
+}
+
 export function installFurnitureBlock(raw) {
   const id = raw.official ? raw.id : safeId(raw.id);
   if (BLOCKS[id] && !id.startsWith('mod_') && raw.official) return id;
@@ -106,7 +122,7 @@ function sanitizePlaced(placed) {
     const z = Math.round(Number(row[2]));
     const type = String(row[3] || '');
     if (!type || !known.has(type)) continue;
-    if (x < -64 || x > 64 || z < -64 || z > 64 || y < -2 || y > 32) continue;
+    if (x < -96 || x > 96 || z < -96 || z > 96 || y < -4 || y > 96) continue;
     next.push([x, y, z, type]);
   }
   if (!next.length) throw new Error('这份建筑里没有能放进去的方块');
@@ -256,9 +272,9 @@ export function palaceExport(world, spawn, name) {
 
 export function findRoomCells(world) {
   const cells = [];
-  for (let y = 1; y <= 8; y += 1) {
-    for (let z = -48; z <= 48; z += 1) {
-      for (let x = -48; x <= 48; x += 1) {
+  for (let y = 1; y <= 24; y += 1) {
+    for (let z = -80; z <= 80; z += 1) {
+      for (let x = -80; x <= 80; x += 1) {
         if (world.get(x, y, z)) continue;
         if (!world.isSolid(x, y - 1, z)) continue;
         let roof = false;

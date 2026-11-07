@@ -1,7 +1,11 @@
 import { createNote } from './notes.js';
 
-export const ISLAND_MIN = -32;
-export const ISLAND_MAX = 31;
+export const ISLAND_MIN = -48;
+export const ISLAND_MAX = 47;
+export const BUILD_MIN = -96;
+export const BUILD_MAX = 96;
+export const Y_MIN = -4;
+export const Y_MAX = 96;
 
 export const SPAWN = { x: 0.5, y: 1, z: 26.5, yaw: 0, pitch: -0.08 };
 
