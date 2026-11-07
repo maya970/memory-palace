@@ -52,8 +52,11 @@ async function loadPlay(root) {
   if (playLoading) return playLoading;
   paintMeter(root, 0.12, t('localPreparing'));
   await new Promise((resolve) => requestAnimationFrame(resolve));
-  playLoading = import('./main.js').then((mod) => {
+  playLoading = import('./play.js').then((mod) => {
     playMod = mod;
+    if (typeof mod.startFromIntro !== 'function') {
+      throw new Error(`宫殿模块不完整：${Object.keys(mod).join(', ') || '空'}`);
+    }
     return mod;
   }).catch((error) => {
     playLoading = null;
@@ -87,8 +90,9 @@ createGate(startEl, {
       const play = await loadPlay(startEl);
       await play.openWriteFirst();
       hideMeter(startEl);
-    } catch {
-      paintMeter(startEl, 0, '宫殿没有加载起来');
+    } catch (error) {
+      console.error(error);
+      paintMeter(startEl, 0, error?.message || '宫殿没有加载起来');
     }
   },
   onIntro() {
@@ -105,9 +109,10 @@ document.querySelector('#intro-go').addEventListener('click', async () => {
   try {
     const play = await loadPlay(introEl);
     await play.startFromIntro();
-  } catch {
+  } catch (error) {
+    console.error(error);
     btn.disabled = false;
-    paintMeter(introEl, 0, '宫殿没有加载起来');
+    paintMeter(introEl, 0, error?.message || '宫殿没有加载起来');
   }
 });
 

@@ -93,7 +93,8 @@ export class WaterView {
     this.material.uniforms.time.value = now * 0.001;
     this.material.uniforms.waves.value = settings.water === 'cube' ? 0 : 1;
     if (camera) this.material.uniforms.eyePos.value.copy(camera.position);
-    if (sun) this.material.uniforms.sunDir.value.copy(sun.position).normalize();
+    if (sun && camera) this.material.uniforms.sunDir.value.copy(sun.position).sub(camera.position).normalize();
+    else if (sun) this.material.uniforms.sunDir.value.copy(sun.position).normalize();
   }
 
   clear() {

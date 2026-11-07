@@ -229,6 +229,7 @@ export function createInventory(root, hooks) {
     const order = ['建筑', '木头', '矿物', '羊毛', '家具', '布艺', '小物', '衣橱'];
     const grouped = new Map(order.map((name) => [name, []]));
     for (const type of TEMPLATES) {
+      if (!BLOCKS[type]) continue;
       const name = BLOCKS[type].group || '建筑';
       if (!grouped.has(name)) grouped.set(name, []);
       grouped.get(name).push(type);

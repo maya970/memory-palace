@@ -126,7 +126,20 @@ export function makeSurface(map, transparent, type) {
   return mat;
 }
 
-function bakeSky(scene, weather, name) {
+export function sampleDay(hours) {
+  const h = ((hours % 24) + 24) % 24;
+  const azim = ((h - 6) / 24) * Math.PI * 2;
+  const elev = Math.sin(azim);
+  const dir = new THREE.Vector3(Math.cos(azim), Math.max(-0.22, elev), Math.sin(azim) * 0.58).normalize();
+  const day = THREE.MathUtils.smoothstep(elev, -0.06, 0.2);
+  const golden = THREE.MathUtils.clamp(1 - Math.abs(elev - 0.12) / 0.28, 0, 1) * (elev > -0.04 ? 1 : 0);
+  const color = new THREE.Color(0xfff4dd);
+  if (golden) color.lerp(new THREE.Color(0xffb067), golden);
+  if (day < 1) color.lerp(new THREE.Color(0x7d8eb0), 1 - day);
+  return { h, azim, elev, dir, day, golden, color };
+}
+
+function bakeSky(scene, weather, name, dir) {
   if (!pmrem) return;
   if (bakedName === name && envTarget) return;
   bakedName = name;
@@ -150,13 +163,15 @@ function bakeSky(scene, weather, name) {
   );
   probe.add(sky);
   const sunPower = weather.sun * (1 - wash * 0.82);
+  const lift = dir?.y ?? 0.42;
   let disc;
-  if (sunPower > 0.04) {
+  if (sunPower > 0.04 && lift > 0.02) {
     disc = new THREE.Mesh(
       new THREE.SphereGeometry(0.35 + weather.shafts * 0.55, 16, 12),
       new THREE.MeshBasicMaterial({ color: new THREE.Color(weather.sunColor), fog: false }),
     );
-    disc.position.set(5.4, 3.6, 3.1).normalize().multiplyScalar(8.2);
+    const place = dir && dir.lengthSq() ? dir.clone().normalize() : new THREE.Vector3(0.62, 0.52, 0.36);
+    disc.position.copy(place).multiplyScalar(8.2);
     disc.scale.setScalar(0.7 + sunPower * 0.35);
     probe.add(disc);
   }
@@ -186,16 +201,55 @@ export function setClimate(name, ctx, indoor) {
   climate.uWet.value = indoor ? w.wet * 0.2 : w.wet;
   climate.uSnow.value = indoor ? 0 : w.snow;
   climate.uPuddle.value = indoor ? 0 : w.puddle;
-  ctx.scene.background = new THREE.Color(w.sky);
-  ctx.scene.fog = new THREE.FogExp2(w.fogColor, w.fog);
-  ctx.hemi.color.set(w.sunColor);
-  ctx.hemi.groundColor.set(0x3a2a22);
-  ctx.hemi.intensity = w.hemi;
-  ctx.sunLight.color.set(w.sunColor);
-  ctx.sunLight.intensity = w.sun;
-  ctx.sun.material.color.set(w.sunColor);
-  ctx.sun.visible = true;
-  bakeSky(ctx.scene, w, key);
   ctx.atmosphere?.setWeather(w, indoor);
   return w;
+}
+
+export function applyDaylight(ctx, weatherName, indoor, origin) {
+  const key = WEATHERS[weatherName] ? weatherName : 'clear';
+  const w = WEATHERS[key];
+  const now = new Date();
+  const hours = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
+  const day = sampleDay(hours);
+  const look = origin || { x: 0, y: 8, z: 0 };
+  const up = indoor ? 0.38 : 1;
+  const skyMix = THREE.MathUtils.clamp(day.day * (1 - Math.min(1, w.fog * 18)), 0, 1);
+  const sky = new THREE.Color(0x0b1220).lerp(new THREE.Color(w.sky), skyMix);
+  if (day.golden) sky.lerp(new THREE.Color(0xb07a48), day.golden * 0.45 * up);
+  const fogCol = new THREE.Color(0x121820).lerp(new THREE.Color(w.fogColor), skyMix);
+  ctx.scene.background = sky;
+  ctx.scene.fog = new THREE.FogExp2(fogCol, w.fog * (day.day > 0.15 ? 1 : 1.35));
+  ctx.hemi.color.copy(day.color).lerp(new THREE.Color(w.sunColor), 0.28);
+  ctx.hemi.groundColor.set(day.day > 0.2 ? 0x3a2a22 : 0x151820);
+  ctx.hemi.intensity = (0.18 + w.hemi * day.day) * (indoor ? 0.7 : 1);
+
+  const reach = 88;
+  const aimY = look.y + 3;
+  if (day.elev > 0.03) {
+    ctx.sunLight.position.set(look.x + day.dir.x * reach, aimY + day.dir.y * reach, look.z + day.dir.z * reach);
+    ctx.sunLight.target.position.set(look.x, aimY, look.z);
+    ctx.sunLight.color.copy(day.color).lerp(new THREE.Color(w.sunColor), 0.4);
+    ctx.sunLight.intensity = w.sun * (0.22 + 0.78 * day.day) * up;
+    ctx.sun.visible = !indoor;
+    ctx.sun.position.set(look.x + day.dir.x * 210, look.y + day.dir.y * 210, look.z + day.dir.z * 210);
+    ctx.sun.material.color.copy(day.color);
+  } else {
+    const moon = day.dir.clone().multiplyScalar(-1);
+    moon.y = Math.abs(moon.y) * 0.35 + 0.28;
+    moon.normalize();
+    ctx.sunLight.position.set(look.x + moon.x * reach, aimY + moon.y * reach, look.z + moon.z * reach);
+    ctx.sunLight.target.position.set(look.x, aimY, look.z);
+    ctx.sunLight.color.set(0x9aaed0);
+    ctx.sunLight.intensity = indoor ? 0.07 : 0.18;
+    ctx.sun.visible = false;
+  }
+  ctx.sunLight.target.updateMatrixWorld();
+  const bucket = `${key}-${Math.round(day.azim * 6)}-${day.elev > 0.05 ? 'd' : 'n'}`;
+  bakeSky(ctx.scene, {
+    ...w,
+    sky: sky.getHex(),
+    fogColor: fogCol.getHex(),
+    sun: ctx.sunLight.intensity,
+    sunColor: ctx.sunLight.color.getHex(),
+  }, bucket, day.elev > 0.03 ? day.dir : null);
 }

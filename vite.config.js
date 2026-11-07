@@ -36,8 +36,15 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        main: resolve('index.html'),
+        app: resolve('index.html'),
         library: resolve('library.html'),
+      },
+      output: {
+        manualChunks(id) {
+          const path = id.replaceAll('\\', '/');
+          if (path.includes('/src/graphics-settings.js') || path.includes('/src/device.js')) return 'settings';
+          if (path.includes('/src/i18n') || path.includes('/src/wallets.js') || path.includes('/src/storage.js') || path.includes('/src/bundle.js')) return 'account';
+        },
       },
     },
   },

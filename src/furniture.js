@@ -12,7 +12,7 @@ function box(x, y, z, w, h, d) {
 export function geometryFromParts(parts) {
   const boxes = (parts || []).filter((part) => Array.isArray(part) && part.length >= 6).map((part) => box(...part.slice(0, 6).map(Number)));
   if (!boxes.length) return new THREE.BoxGeometry(0.5, 0.5, 0.5);
-  return mergeGeometries(boxes);
+  return mergeGeometries(boxes) || new THREE.BoxGeometry(0.5, 0.5, 0.5);
 }
 
 function mesh(parts) {

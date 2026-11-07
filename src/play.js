@@ -32,7 +32,7 @@ import { applyLights, beginGraphics, currentGraphics, loadGraphics, saveGraphics
 import { isHandheld, markDevice } from './device.js';
 import { WaterView } from './water.js';
 import { Atmosphere } from './atmosphere.js';
-import { installEnvironment, setClimate } from './climate.js';
+import { applyDaylight, installEnvironment, setClimate } from './climate.js';
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const handheld = isHandheld();
@@ -58,6 +58,12 @@ let gfx = loadGraphics();
 let flowAcc = 0;
 let dropOnClose = false;
 let pendingLook = null;
+let started = false;
+let worldReady = false;
+let worldBoot = null;
+let leaveSettled = false;
+let appUnlock = false;
+let lastIndoor = null;
 
 const input = {
   forward: false,
@@ -75,7 +81,16 @@ scene.fog = new THREE.FogExp2(0xb08a62, 0.012);
 const camera = new THREE.PerspectiveCamera(72, 1, 0.08, 400);
 camera.rotation.order = 'YXZ';
 
-const renderer = new THREE.WebGLRenderer({ antialias: !handheld, powerPreference: handheld ? 'low-power' : 'high-performance' });
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias: !handheld, powerPreference: handheld ? 'low-power' : 'high-performance' });
+} catch {
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'low-power' });
+  } catch (error) {
+    throw new Error(error?.message || '这台电脑没能打开画面');
+  }
+}
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, handheld ? 1 : 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 view.appendChild(renderer.domElement);
@@ -90,7 +105,7 @@ view.appendChild(labelRenderer.domElement);
 const hemi = new THREE.HemisphereLight(0xffe6c4, 0x3a2a22, 0.42);
 const sunLight = new THREE.DirectionalLight(0xffd7a0, 2.1);
 sunLight.position.set(86, 34, 48);
-scene.add(hemi, sunLight);
+scene.add(hemi, sunLight, sunLight.target);
 
 const sun = new THREE.Mesh(
   new THREE.SphereGeometry(10, 24, 16),
@@ -112,12 +127,9 @@ const world = new World(scene, waterView);
 const particles = new Particles(scene);
 applyLights(renderer, sunLight, world.meshes(), { ...gfx, light: 'simple', water: 'cube' });
 const atmosphere = new Atmosphere(renderer, scene, camera);
-let lastIndoor = null;
 applyMood(false);
 
 let notes = (save?.notes || buildStarterNotes()).map(normalizeNote);
-let worldReady = false;
-let worldBoot = null;
 
 const player = new Player(SPAWN);
 if (save?.player && !stuck(save.player)) player.place(save.player);
@@ -141,9 +153,6 @@ const inventory = createInventory(document.querySelector('#inventory'), {
 inventory.load(save);
 
 let routeId = save?.routeId || null;
-let started = false;
-let leaveSettled = false;
-let appUnlock = false;
 let ignoreEscUntil = 0;
 let aimed = null;
 let leftDown = false;
@@ -242,18 +251,6 @@ window.addEventListener('resize', resize);
 window.addEventListener('beforeunload', persist);
 
 syncAccountBanner();
-export async function startFromIntro() {
-  await ensureWorld(introEl);
-  sfx.unlock();
-  introEl.classList.add('hidden');
-  hud.classList.remove('hidden');
-  started = true;
-  if (pendingLook && !stuck(pendingLook)) player.place(pendingLook);
-  pendingLook = null;
-  syncAccountBanner();
-  lock();
-  syncPause();
-}
 document.querySelector('#top-upload').addEventListener('click', async () => {
   const message = await backup.upload();
   if (message) toast(message, 12000);
@@ -325,6 +322,7 @@ document.querySelector('#help-close').addEventListener('click', () => {
   if (started) lock();
 });
 function bindHold(button, press, release) {
+  if (!button) return;
   const down = (event) => {
     event.preventDefault();
     button.setPointerCapture?.(event.pointerId);
@@ -576,6 +574,9 @@ function frame(now) {
     applyMood(indoor);
   }
   if (indoor) lamp.position.set(player.x, player.y + 1.4, player.z);
+  if (started && drawGfx.light !== 'simple') {
+    applyDaylight({ scene, hemi, sunLight, sun, atmosphere }, drawGfx.weather, indoor, camera.position);
+  }
   atmosphere.render(now, sun, started && drawGfx.light !== 'simple', dt, camera.position);
   labelRenderer.render(scene, camera);
   requestAnimationFrame(frame);
@@ -1001,7 +1002,14 @@ async function ensureWorld(progressRoot) {
     gfx = loadGraphics();
     paint(0.22);
     await new Promise((resolve) => requestAnimationFrame(resolve));
-    if (gfx.light !== 'simple') installEnvironment(renderer, scene);
+    if (gfx.light !== 'simple') {
+      try {
+        installEnvironment(renderer, scene);
+      } catch (error) {
+        console.error(error);
+        gfx = saveGraphics({ light: 'simple' });
+      }
+    }
     await world.rebuildMeshes((ratio) => paint(0.22 + ratio * 0.7));
     applyLights(renderer, sunLight, world.meshes(), gfx);
     for (const note of notes) {
@@ -1133,11 +1141,16 @@ function applyMood(indoor) {
     hemi.intensity = 0.95;
     sunLight.color.set(0xfff2d8);
     sunLight.intensity = 1.32;
+    sunLight.position.set(86, 34, 48);
+    sunLight.target.position.set(0, 0, 0);
     sun.visible = true;
+    sun.position.copy(sunLight.position).multiplyScalar(1.15);
     atmosphere.setWeather({ rain: 0, flakes: 0, bloom: 0.2, shafts: 0, sunColor: 0xfff2d8 }, false);
     return;
   }
-  setClimate(gfx.weather, { scene, hemi, sunLight, sun, atmosphere }, Boolean(indoor));
+  const ctx = { scene, hemi, sunLight, sun, atmosphere };
+  setClimate(gfx.weather, ctx, Boolean(indoor));
+  applyDaylight(ctx, gfx.weather, Boolean(indoor), camera.position);
 }
 
 function paintGraphics() {
@@ -1179,7 +1192,7 @@ function closeCommunity() {
   if (started) lock();
 }
 
-export async function openWriteFirst() {
+async function openWriteFirst() {
   if (editor.isOpen()) return;
   if (!worldReady) {
     try {
@@ -1309,3 +1322,18 @@ function makeClouds() {
   });
   return group;
 }
+
+async function startFromIntro() {
+  await ensureWorld(introEl);
+  sfx.unlock();
+  introEl.classList.add('hidden');
+  hud.classList.remove('hidden');
+  started = true;
+  if (pendingLook && !stuck(pendingLook)) player.place(pendingLook);
+  pendingLook = null;
+  syncAccountBanner();
+  lock();
+  syncPause();
+}
+
+export { openWriteFirst, startFromIntro };
