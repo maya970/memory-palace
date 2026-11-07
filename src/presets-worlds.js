@@ -1,5 +1,8 @@
-import { finish, grid, portalZ } from './presets-ornament.js';
-import { halls, heightOf, land, trail } from './presets-site.js';
+import {
+  chinaFace, egyptFace, englandFace, gothicFace, indiaFace, italyFace, japanFace, russiaFace, spainFace, turkeyFace,
+} from './presets-facade.js';
+import { finish, grid } from './presets-ornament.js';
+import { approach, halls, heightOf, land } from './presets-site.js';
 
 function site(opts) {
   const g = grid();
@@ -22,21 +25,22 @@ function site(opts) {
     roof: opts.roof,
     fill: opts.fill,
     accent: opts.accent,
-    wallH: 5,
+    wallH: opts.wallH || 5,
     inner: 4,
+    style: opts.style,
+    skipWindows: true,
   });
-  trail(g, 0, 38, Math.floor(built.doorX), Math.floor(built.doorZ) + 1, opts.kind, opts.tread || 'cobblestone', true);
-  if (opts.kind === 'water' && opts.waterY != null) {
-    for (let z = Math.floor(built.doorZ); z <= 40; z += 1) {
-      g.box(-2, opts.waterY, z, 2, opts.waterY, z, opts.tread || 'stone_bricks');
-      if (z % 4 === 0) {
-        g.set(-2, opts.waterY + 1, z, opts.wall);
-        g.set(2, opts.waterY + 1, z, opts.wall);
-      }
+  const tread = opts.tread || 'cobblestone';
+  const pathY = approach(g, built.doorX, built.doorZ, built.floorY, 38, opts.kind, tread, opts.fill, true);
+  if (opts.kind === 'water') {
+    for (let z = built.doorZ; z <= 40; z += 1) {
+      g.box(-2, built.floorY, z, 2, built.floorY, z, tread);
+      g.box(-2, (opts.waterY || 0) - 1, z, -2, built.floorY - 1, z, opts.fill);
+      g.box(2, (opts.waterY || 0) - 1, z, 2, built.floorY - 1, z, opts.fill);
     }
   }
   opts.dress?.(g, plateau, built);
-  const spawnY = opts.kind === 'water' ? (opts.waterY || 5) + 1 : heightOf(0, 38, opts.kind) + 1;
+  const spawnY = (opts.kind === 'water' ? built.floorY : pathY) + 1;
   return finish(
     opts.id,
     opts.name,
@@ -48,21 +52,14 @@ function site(opts) {
   );
 }
 
-function torii(g, x, z, y) {
-  g.box(x - 3, y, z, x - 3, y + 6, z, 'wool_red');
-  g.box(x + 3, y, z, x + 3, y + 6, z, 'wool_red');
-  g.box(x - 4, y + 6, z, x + 4, y + 6, z, 'wool_red');
-  g.box(x - 5, y + 7, z, x + 5, y + 7, z, 'wool_black');
-}
-
 export function worldPalaces() {
   return [
     site({
       id: 'japan_shrine',
       country: '日本',
       name: '日本·山上神社',
-      lead: '神社建在山上。山道两侧有书架，二十五间屋子连成一座，不是平地摆盒子。',
-      credit: '依山而建的神社院落，参道上山，屋宇相通。',
+      lead: '鸟居参道上山。红柱、黑檐、注连绳，二十五间屋宇相通。',
+      credit: '依山神社：大门是鸟居，不是一座光秃木盒。',
       kind: 'mountain',
       top: 'grass',
       fill: 'stone',
@@ -71,19 +68,16 @@ export function worldPalaces() {
       roof: 'wool_red',
       accent: 'dark_oak_planks',
       tread: 'cobblestone',
-      dress(g, y) {
-        torii(g, 0, 30, heightOf(0, 30, 'mountain'));
-        torii(g, 0, 22, heightOf(0, 22, 'mountain'));
-        g.set(-2, y + 7, -16, 'gold');
-        g.set(2, y + 7, -16, 'gold');
-      },
+      style: 'japan',
+      wallH: 6,
+      dress(g, y, built) { japanFace(g, built); },
     }),
     site({
       id: 'gothic_water',
       country: '法国',
       name: '法国·水上哥特院',
-      lead: '建在水中石岛上。二十五间相通的厅室，从堤道走进去。',
-      credit: '水上石岛哥特院落，不是平地一座空堂。',
+      lead: '尖券窗、飞扶壁、叠涩大门和尖塔围着二十五间相通厅室。',
+      credit: '哥特外景回到立面上，内里仍是相连的院落。',
       kind: 'water',
       waterY: 5,
       oz: -8,
@@ -95,17 +89,16 @@ export function worldPalaces() {
       accent: 'wool_red',
       tread: 'stone_bricks',
       plateau: 8,
-      dress(g, y, built) {
-        portalZ(g, Math.floor(built.doorX), Math.floor(built.doorZ), y + 1, 'stone_bricks');
-        g.set(0, y + 8, -10, 'gold');
-      },
+      style: 'gothic',
+      wallH: 8,
+      dress(g, y, built) { gothicFace(g, built); },
     }),
     site({
       id: 'long_corridor',
       country: '中国',
       name: '中国·依山园林',
-      lead: '山坡上的二十五间相连侧厅，红柱青瓦，山道有书。',
-      credit: '依山园林院落，屋子彼此开门相通。',
+      lead: '红柱金枋、彩绘檐口，二十五间侧厅开门相通。',
+      credit: '园林外檐和室内茶室书房分开看。',
       kind: 'hill',
       top: 'grass',
       fill: 'dirt',
@@ -114,16 +107,16 @@ export function worldPalaces() {
       roof: 'dark_oak_planks',
       accent: 'wool_yellow',
       tread: 'planks',
-      dress(g, y) {
-        for (let x = -12; x <= 12; x += 4) g.set(x, y + 7, -18, 'gold');
-      },
+      style: 'china',
+      wallH: 6,
+      dress(g, y, built) { chinaFace(g, built); },
     }),
     site({
       id: 'taj_excerpt',
       country: '印度',
       name: '印度·河边白陵',
-      lead: '临水台地，二十五间白石屋子相连，中央院落可走。',
-      credit: '临水白石院，不是一座空穹顶。',
+      lead: '四角塔、青金腰线、尖券门面，内里二十五间白石屋子。',
+      credit: '白石陵的塔和券在外面，房间在里面。',
       kind: 'water',
       waterY: 4,
       oz: -8,
@@ -135,13 +128,16 @@ export function worldPalaces() {
       accent: 'lapis',
       tread: 'quartz',
       plateau: 7,
+      style: 'india',
+      wallH: 7,
+      dress(g, y, built) { indiaFace(g, built); },
     }),
     site({
       id: 'civic_palace',
       country: '意大利',
       name: '意大利·山坡宫',
-      lead: '建在山坡平台上，二十五间厅室相通，有山道。',
-      credit: '山坡宫殿，屋子连成一座。',
+      lead: '柱廊、金腰线、三角山花，二十五间厅室在柱后。',
+      credit: '先看见柱列，再走进去。',
       kind: 'hill',
       top: 'grass',
       fill: 'stone',
@@ -150,13 +146,16 @@ export function worldPalaces() {
       roof: 'wool_green',
       accent: 'gold',
       tread: 'stone_bricks',
+      style: 'italy',
+      wallH: 7,
+      dress(g, y, built) { italyFace(g, built); },
     }),
     site({
       id: 'egypt_hall',
       country: '埃及',
       name: '埃及·沙漠神庙',
-      lead: '沙丘里削出一座台地，二十五间神庙侧室相连。',
-      credit: '沙漠神庙院落，不是平地几根柱。',
+      lead: '塔门、彩柱、金腰线立在沙丘上，内里二十五间神庙侧室。',
+      credit: '沙漠神庙先是塔门，不是平盒子。',
       kind: 'dune',
       top: 'sand',
       fill: 'sandstone',
@@ -165,13 +164,16 @@ export function worldPalaces() {
       roof: 'gold',
       accent: 'lapis',
       tread: 'sandstone',
+      style: 'egypt',
+      wallH: 7,
+      dress(g, y, built) { egyptFace(g, built); },
     }),
     site({
       id: 'spain_patio',
       country: '西班牙',
       name: '西班牙·山坡庭院',
-      lead: '干热山坡上的相连院落，二十五间屋子。',
-      credit: '依山庭院，瓷砖铺地的连房。',
+      lead: '马蹄券和彩砖腰线在立面上，内里二十五间相连。',
+      credit: '庭院的券在门外就能看见。',
       kind: 'hill',
       top: 'dirt',
       fill: 'stone',
@@ -180,13 +182,15 @@ export function worldPalaces() {
       roof: 'wool_yellow',
       accent: 'bricks',
       tread: 'bricks',
+      style: 'spain',
+      dress(g, y, built) { spainFace(g, built); },
     }),
     site({
       id: 'turkey_mosque',
       country: '土耳其',
       name: '土耳其·山脊寺',
-      lead: '建在山脊平台，二十五间礼拜侧室相通。',
-      credit: '山脊寺院，不是平地一个穹顶。',
+      lead: '穹顶和尖塔在屋顶上，二十五间礼拜侧室在下面。',
+      credit: '先看见穹顶，再进门。',
       kind: 'hill',
       top: 'grass',
       fill: 'stone',
@@ -195,13 +199,16 @@ export function worldPalaces() {
       roof: 'gold',
       accent: 'wool_blue',
       tread: 'stone',
+      style: 'turkey',
+      wallH: 7,
+      dress(g, y, built) { turkeyFace(g, built); },
     }),
     site({
       id: 'england_hall',
       country: '英国',
       name: '英国·丘上大厅',
-      lead: '绿丘上的二十五间相连厅室，山道通向大门。',
-      credit: '丘上庄园，屋子连成一座。',
+      lead: '木构立面、壁炉凸窗和烟囱，二十五间厅室相通。',
+      credit: '庄园外皮是木构和烟囱。',
       kind: 'hill',
       top: 'grass',
       fill: 'dirt',
@@ -210,13 +217,16 @@ export function worldPalaces() {
       roof: 'dark_oak_planks',
       accent: 'wool_red',
       tread: 'cobblestone',
+      style: 'england',
+      wallH: 6,
+      dress(g, y, built) { englandFace(g, built); },
     }),
     site({
       id: 'russia_church',
       country: '俄罗斯',
       name: '俄罗斯·雪地教堂',
-      lead: '雪坡上的二十五间相通侧堂，山道两侧有书。',
-      credit: '雪地教堂院落，不是平地五个洋葱顶。',
+      lead: '五座洋葱顶和金色腰线，内里二十五间侧堂。',
+      credit: '雪地里先看见金顶。',
       kind: 'snow',
       top: 'snow',
       fill: 'stone',
@@ -225,6 +235,9 @@ export function worldPalaces() {
       roof: 'gold',
       accent: 'wool_blue',
       tread: 'cobblestone',
+      style: 'russia',
+      wallH: 7,
+      dress(g, y, built) { russiaFace(g, built); },
     }),
   ];
 }

@@ -4,16 +4,21 @@ const KEY = 'memory-palace-graphics';
 
 const DEFAULTS = {
   water: 'flow',
-  light: 'cinematic',
+  light: 'simple',
+  weather: 'dusk',
 };
 
 export function loadGraphics() {
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) || '{}');
-    const light = saved.light === 'simple' ? 'simple' : 'cinematic';
+    const light = saved.light === 'cinematic' ? 'cinematic' : 'simple';
+    const weather = ['clear', 'rain', 'storm', 'mist', 'snow', 'dusk'].includes(saved.weather)
+      ? saved.weather
+      : DEFAULTS.weather;
     return {
       water: ['cube', 'still', 'flow'].includes(saved.water) ? saved.water : DEFAULTS.water,
       light,
+      weather,
     };
   } catch {
     return { ...DEFAULTS };
@@ -28,6 +33,7 @@ export function saveGraphics(next) {
 
 export function applyLights(renderer, sunLight, meshes, settings) {
   const rich = settings.light !== 'simple';
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, rich ? 2 : 1));
   renderer.shadowMap.enabled = rich;
   renderer.shadowMap.type = 2;
   renderer.toneMapping = rich ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;

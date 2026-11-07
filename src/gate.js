@@ -41,6 +41,7 @@ export function createGate(root, hooks) {
   function setBusy(next) {
     busy = next;
     root.querySelectorAll('button').forEach((button) => {
+      if (button.dataset.light) return;
       const wait = button.id === 'gate-enter' && !prepared;
       button.disabled = next || wait;
     });

@@ -10,7 +10,8 @@ const GRADE = {
     tDiffuse: { value: null },
     sunPos: { value: new THREE.Vector2(0.7, 0.72) },
     sunStrength: { value: 1 },
-    time: { value: 0 },
+    indoor: { value: 0 },
+    wetLook: { value: 0 },
   },
   vertexShader: `
     varying vec2 vUv;
@@ -23,7 +24,8 @@ const GRADE = {
     uniform sampler2D tDiffuse;
     uniform vec2 sunPos;
     uniform float sunStrength;
-    uniform float time;
+    uniform float indoor;
+    uniform float wetLook;
     varying vec2 vUv;
     void main() {
       vec4 src = texture2D(tDiffuse, vUv);
@@ -36,15 +38,15 @@ const GRADE = {
         float lum = dot(sampleCol, vec3(0.30, 0.52, 0.18));
         shafts += smoothstep(0.58, 0.95, lum);
       }
-      shafts = (shafts / 16.0) * sunStrength;
+      shafts = (shafts / 16.0) * sunStrength * (1.0 - indoor);
       vec3 haze = vec3(1.0, 0.84, 0.62) * shafts * 0.55;
-      vec3 fog = vec3(0.62, 0.58, 0.5);
-      vec3 color = mix(src.rgb, fog, 0.18);
-      color *= vec3(1.06, 0.98, 0.90);
+      vec3 outdoor = src.rgb * vec3(1.05, 0.98, 0.9);
+      vec3 inside = src.rgb * vec3(1.18, 0.92, 0.72) + vec3(0.04, 0.02, 0.0);
+      vec3 color = mix(outdoor, inside, indoor);
       color += haze;
-      color = mix(color, color * color * (3.0 - 2.0 * color), 0.12);
+      color = mix(color, color * vec3(0.82, 0.88, 0.95), wetLook * 0.35 * (1.0 - indoor));
       float vig = smoothstep(1.15, 0.28, distance(vUv, vec2(0.5)));
-      color *= mix(0.72, 1.0, vig);
+      color *= mix(0.7, 1.0, vig);
       gl_FragColor = vec4(color, src.a);
     }
   `,
@@ -55,15 +57,25 @@ export class Atmosphere {
     this.renderer = renderer;
     this.scene = scene;
     this.camera = camera;
+    this.weather = { rain: 0, flakes: 0, bloom: 0.3, shafts: 0.6, wet: 0 };
+    this.indoor = false;
     this.composer = new EffectComposer(renderer);
     this.composer.addPass(new RenderPass(scene, camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.42, 0.72, 0.78);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.32, 0.7, 0.8);
     this.composer.addPass(this.bloom);
     this.grade = new ShaderPass(GRADE);
     this.composer.addPass(this.grade);
     this.composer.addPass(new OutputPass());
-    this.rain = makeRain();
-    scene.add(this.rain);
+    this.rain = makeDrops(0xc8d4e4, 0.08, 900);
+    this.snow = makeDrops(0xf4f8fc, 0.14, 700);
+    scene.add(this.rain, this.snow);
+  }
+
+  setWeather(weather, indoor) {
+    this.weather = weather;
+    this.indoor = Boolean(indoor);
+    this.bloom.strength = indoor ? 0.38 : weather.bloom;
+    this.grade.uniforms.wetLook.value = weather.wet;
   }
 
   resize(width, height) {
@@ -72,16 +84,12 @@ export class Atmosphere {
   }
 
   render(now, sun, enabled) {
-    this.rain.visible = enabled;
-    if (enabled) {
-      const pos = this.rain.geometry.attributes.position;
-      for (let i = 0; i < pos.count; i += 1) {
-        let y = pos.getY(i) - (0.55 + (i % 5) * 0.08);
-        if (y < 2) y = 58 + (i % 7);
-        pos.setY(i, y);
-      }
-      pos.needsUpdate = true;
-    }
+    const rainOn = enabled && !this.indoor && this.weather.rain > 0;
+    const snowOn = enabled && !this.indoor && this.weather.flakes > 0;
+    this.rain.visible = rainOn;
+    this.snow.visible = snowOn;
+    if (rainOn) drift(this.rain, 0.9 * this.weather.rain, 2);
+    if (snowOn) drift(this.snow, 0.22, 58);
     if (!enabled) {
       this.renderer.render(this.scene, this.camera);
       return;
@@ -89,14 +97,13 @@ export class Atmosphere {
     const clip = sun.position.clone().project(this.camera);
     const inFront = clip.z < 1 && clip.x > -1.4 && clip.x < 1.4 && clip.y > -1.4 && clip.y < 1.4;
     this.grade.uniforms.sunPos.value.set(clip.x * 0.5 + 0.5, clip.y * 0.5 + 0.5);
-    this.grade.uniforms.sunStrength.value = inFront ? 1 : 0.15;
-    this.grade.uniforms.time.value = now * 0.001;
+    this.grade.uniforms.sunStrength.value = this.indoor ? 0 : inFront ? this.weather.shafts : 0.1;
+    this.grade.uniforms.indoor.value = this.indoor ? 1 : 0;
     this.composer.render();
   }
 }
 
-function makeRain() {
-  const count = 900;
+function makeDrops(color, size, count) {
   const positions = new Float32Array(count * 3);
   for (let i = 0; i < count; i += 1) {
     positions[i * 3] = (Math.random() - 0.5) * 140;
@@ -106,13 +113,19 @@ function makeRain() {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   const mat = new THREE.PointsMaterial({
-    color: 0xc8d4e4,
-    size: 0.08,
-    transparent: true,
-    opacity: 0.42,
-    depthWrite: false,
+    color, size, transparent: true, opacity: 0.46, depthWrite: false,
   });
   const points = new THREE.Points(geo, mat);
   points.frustumCulled = false;
   return points;
+}
+
+function drift(points, speed, resetY) {
+  const pos = points.geometry.attributes.position;
+  for (let i = 0; i < pos.count; i += 1) {
+    let y = pos.getY(i) - speed;
+    if (y < 2) y = resetY + (i % 7);
+    pos.setY(i, y);
+  }
+  pos.needsUpdate = true;
 }

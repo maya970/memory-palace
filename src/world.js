@@ -5,6 +5,7 @@ import { furnitureGeometry, surfaceLift } from './furniture.js';
 import { texturesFor } from './textures.js';
 import { buildBase } from './palace.js';
 import { loadGraphics } from './graphics.js';
+import { makeSurface } from './climate.js';
 
 const MAX = 40000;
 
@@ -34,14 +35,8 @@ function capGeometry(y) {
   return plane;
 }
 
-function lambert(map, transparent) {
-  return new THREE.MeshLambertMaterial({
-    map,
-    transparent,
-    alphaTest: transparent ? 0.15 : 0,
-    depthWrite: !transparent,
-    side: THREE.FrontSide,
-  });
+function lambert(map, transparent, type) {
+  return makeSurface(map, transparent, type);
 }
 
 export class World {
@@ -164,7 +159,7 @@ export class World {
     const transparent = Boolean(BLOCKS[type]?.transparent || tex.transparent || BLOCKS[type]?.solid === false);
     const meshes = [];
     const add = (geo, map) => {
-      const mesh = new THREE.InstancedMesh(geo, lambert(map, transparent), MAX);
+      const mesh = new THREE.InstancedMesh(geo, lambert(map, transparent, type), MAX);
       mesh.count = 0;
       mesh.frustumCulled = false;
       this.scene.add(mesh);
@@ -225,6 +220,17 @@ export class World {
     const type = this.blocks.get(keyOf(x, y, z));
     if (!type) return false;
     return BLOCKS[type]?.solid !== false;
+  }
+
+  isRoofed(x, y, z) {
+    const gx = Math.floor(x);
+    const gy = Math.floor(y + 0.2);
+    const gz = Math.floor(z);
+    for (let up = 1; up <= 8; up += 1) {
+      const type = this.get(gx, gy + up, gz);
+      if (type && BLOCKS[type]?.solid !== false) return true;
+    }
+    return false;
   }
 
   setBlock(x, y, z, type, origin = 'world') {

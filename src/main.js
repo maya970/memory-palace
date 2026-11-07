@@ -32,6 +32,7 @@ import { applySavedMods, dropNoteInRoom, hydrateMods } from './community.js';
 import { applyLights, loadGraphics, saveGraphics } from './graphics.js';
 import { WaterView } from './water.js';
 import { Atmosphere } from './atmosphere.js';
+import { installEnvironment, setClimate } from './climate.js';
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const dirs = ['北', '东北', '东', '东南', '南', '西南', '西', '西北'];
@@ -95,6 +96,8 @@ const sun = new THREE.Mesh(
 );
 sun.position.copy(sunLight.position).multiplyScalar(1.15);
 scene.add(sun);
+const lamp = new THREE.PointLight(0xffc078, 0, 16, 1.8);
+scene.add(lamp);
 
 const clouds = makeClouds();
 scene.add(clouds);
@@ -107,9 +110,11 @@ const waterView = new WaterView(scene);
 const world = new World(scene, waterView);
 const particles = new Particles(scene);
 world.init(save);
+installEnvironment(renderer, scene);
 applyLights(renderer, sunLight, world.meshes(), gfx);
 const atmosphere = new Atmosphere(renderer, scene, camera);
-applyMood();
+let lastIndoor = null;
+applyMood(false);
 
 let notes = (save?.notes || buildStarterNotes()).map(normalizeNote);
 for (const note of notes) {
@@ -311,12 +316,19 @@ document.querySelectorAll('#graphics [data-water]').forEach((button) => {
     applyLights(renderer, sunLight, world.meshes(), gfx);
   });
 });
-document.querySelectorAll('#graphics [data-light]').forEach((button) => {
+document.querySelectorAll('[data-light]').forEach((button) => {
   button.addEventListener('click', () => {
     gfx = saveGraphics({ light: button.dataset.light });
     paintGraphics();
     applyLights(renderer, sunLight, world.meshes(), gfx);
-    applyMood();
+    applyMood(lastIndoor);
+  });
+});
+document.querySelectorAll('#graphics [data-weather]').forEach((button) => {
+  button.addEventListener('click', () => {
+    gfx = saveGraphics({ weather: button.dataset.weather });
+    paintGraphics();
+    applyMood(lastIndoor);
   });
 });
 document.querySelector('#pause-write').addEventListener('click', openWriteFirst);
@@ -501,6 +513,12 @@ function frame(now) {
     }
   }
   if (waterView.dirty) waterView.rebuild(world, gfx);
+  const indoor = started && world.isRoofed(player.x, player.y, player.z);
+  if (indoor !== lastIndoor) {
+    lastIndoor = indoor;
+    applyMood(indoor);
+  }
+  if (indoor) lamp.position.set(player.x, player.y + 1.4, player.z);
   atmosphere.render(now, sun, gfx.light !== 'simple');
   labelRenderer.render(scene, camera);
   gate.markReady();
@@ -970,28 +988,33 @@ function openBackup() {
   backup.open();
 }
 
-function applyMood() {
+function applyMood(indoor) {
+  lamp.intensity = gfx.light !== 'simple' && indoor ? 1.35 : 0;
   if (gfx.light === 'simple') {
     scene.background = new THREE.Color(0x8ec8ef);
     scene.fog = new THREE.Fog(0x8ec8ef, 52, 168);
     hemi.intensity = 0.95;
     sunLight.intensity = 1.32;
+    sun.visible = true;
+    atmosphere.setWeather({ rain: 0, flakes: 0, bloom: 0.2, shafts: 0, wet: 0 }, false);
     return;
   }
-  scene.background = new THREE.Color(0xb08a62);
-  scene.fog = new THREE.FogExp2(0xb08a62, 0.012);
-  hemi.intensity = 0.42;
-  sunLight.intensity = 2.1;
+  setClimate(gfx.weather, { scene, hemi, sunLight, sun, atmosphere }, Boolean(indoor));
 }
 
 function paintGraphics() {
   document.querySelectorAll('#graphics [data-water]').forEach((button) => {
     button.classList.toggle('on', button.dataset.water === gfx.water);
   });
-  document.querySelectorAll('#graphics [data-light]').forEach((button) => {
+  document.querySelectorAll('[data-light]').forEach((button) => {
     button.classList.toggle('on', button.dataset.light === gfx.light);
   });
+  document.querySelectorAll('#graphics [data-weather]').forEach((button) => {
+    button.classList.toggle('on', button.dataset.weather === gfx.weather);
+  });
 }
+
+paintGraphics();
 
 function openGraphics() {
   if (editor.isOpen()) return;
@@ -1042,6 +1065,8 @@ function applyPalacePreset(preset) {
   world.init(preset.world || { removed: [], placed: [] });
   applyLights(renderer, sunLight, world.meshes(), gfx);
   if (preset.spawn) player.place(preset.spawn);
+  lastIndoor = null;
+  applyMood(world.isRoofed(player.x, player.y, player.z));
   for (const note of notes) {
     const pos = parseShelf(note.shelf);
     if (!pos || !isNoteHost(world.hostType(pos.x, pos.y, pos.z))) note.shelf = null;

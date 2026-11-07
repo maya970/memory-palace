@@ -112,7 +112,14 @@ export class Player {
       const next = this[axis] + step;
       const nx = axis === 'x' ? next : this.x;
       const nz = axis === 'z' ? next : this.z;
-      if (overlaps(nx, this.y, nz, world)) break;
+      if (overlaps(nx, this.y, nz, world)) {
+        if (!sneak && this.grounded && !overlaps(nx, this.y + 1, nz, world)) {
+          this.y += 1;
+          this[axis] = next;
+          continue;
+        }
+        break;
+      }
       if (sneak && !this.hasFooting(nx, nz, world)) break;
       this[axis] = next;
     }

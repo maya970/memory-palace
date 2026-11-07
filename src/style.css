@@ -817,6 +817,17 @@ body.account-pending #compass { top: 58px; }
 .apple-sheet h1,
 .apple-menu .apple-kicker { letter-spacing: 0; }
 
+.gate-gfx {
+  margin: 0 0 16px;
+}
+.gate-gfx .apple-lead {
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+.gate-gfx .mods-label {
+  margin: 0 0 6px;
+}
+
 .lang-pick {
   display: flex;
   align-items: center;
