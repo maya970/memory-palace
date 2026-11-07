@@ -29,6 +29,8 @@ import { accountNeedsExport, clearWallets, loadWallets, markAccountExported, wal
 import { applyI18n, t } from './i18n.js';
 import { createCommunity } from './community-ui.js';
 import { applySavedMods, dropNoteInRoom, hydrateMods } from './community.js';
+import { applyLights, loadGraphics, saveGraphics } from './graphics.js';
+import { WaterView } from './water.js';
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const dirs = ['北', '东北', '东', '东南', '南', '西南', '西', '西北'];
@@ -47,6 +49,9 @@ const helpEl = document.querySelector('#help');
 const docsEl = document.querySelector('#docs');
 const leaveEl = document.querySelector('#leave');
 const communityEl = document.querySelector('#community');
+const graphicsEl = document.querySelector('#graphics');
+let gfx = loadGraphics();
+let flowAcc = 0;
 let dropOnClose = false;
 let pendingLook = null;
 
@@ -97,9 +102,11 @@ hydrateMods();
 const save = loadSave();
 applySavedMods(save?.mods);
 loadTextures();
-const world = new World(scene);
+const waterView = new WaterView(scene);
+const world = new World(scene, waterView);
 const particles = new Particles(scene);
 world.init(save);
+applyLights(renderer, sunLight, world.meshes(), gfx);
 
 let notes = (save?.notes || buildStarterNotes()).map(normalizeNote);
 for (const note of notes) {
@@ -291,6 +298,23 @@ document.querySelector('#pause-bag').addEventListener('click', openBag);
 document.querySelector('#pause-storage').addEventListener('click', openBackup);
 document.querySelector('#pause-docs').addEventListener('click', openDocs);
 document.querySelector('#pause-community').addEventListener('click', openCommunity);
+document.querySelector('#pause-graphics').addEventListener('click', openGraphics);
+document.querySelector('#graphics-close').addEventListener('click', closeGraphics);
+document.querySelectorAll('#graphics [data-water]').forEach((button) => {
+  button.addEventListener('click', () => {
+    gfx = saveGraphics({ water: button.dataset.water });
+    paintGraphics();
+    world.rebuildMeshes();
+    applyLights(renderer, sunLight, world.meshes(), gfx);
+  });
+});
+document.querySelectorAll('#graphics [data-light]').forEach((button) => {
+  button.addEventListener('click', () => {
+    gfx = saveGraphics({ light: button.dataset.light });
+    paintGraphics();
+    applyLights(renderer, sunLight, world.meshes(), gfx);
+  });
+});
 document.querySelector('#pause-write').addEventListener('click', openWriteFirst);
 document.querySelector('#pause-logout').addEventListener('click', logout);
 document.querySelector('#pause-help').addEventListener('click', openHelp);
@@ -464,6 +488,15 @@ function frame(now) {
   hud.classList.toggle('writing', editor.isOpen());
   particles.update(dt);
   clouds.position.x = reducedMotion ? 0 : Math.sin(now * 0.00004) * 6;
+  waterView.update(now, gfx);
+  if (started) {
+    flowAcc += dt;
+    if (flowAcc > 0.28) {
+      flowAcc = 0;
+      waterView.tick(world, gfx);
+    }
+  }
+  if (waterView.dirty) waterView.rebuild(world, gfx);
   renderer.render(scene, camera);
   labelRenderer.render(scene, camera);
   gate.markReady();
@@ -584,7 +617,9 @@ function useAimed() {
   const held = inventory.selectedType();
   const spot = placeSpot(aimed, held);
   if (!held || !spot || !canPlaceOn(BLOCKS[held], BLOCKS[aimed.type], aimed.nx, aimed.ny, aimed.nz)) return;
-  const ok = spot.cover ? world.setCover(spot.x, spot.y, spot.z, held) : world.setBlock(spot.x, spot.y, spot.z, held);
+  const ok = spot.cover
+    ? world.setCover(spot.x, spot.y, spot.z, held)
+    : world.setBlock(spot.x, spot.y, spot.z, held, held === 'water' ? 'player' : 'world');
   if (!ok) {
     toast('这种方块已经放得太多了');
     return;
@@ -844,7 +879,7 @@ function lock() {
 }
 
 function surfaceBlocked() {
-  return editor.isOpen() || inventory.isOpen() || backup.isOpen() || docs.isOpen() || community.isOpen() || !helpEl.classList.contains('hidden') || !startEl.classList.contains('hidden') || !introEl.classList.contains('hidden');
+  return editor.isOpen() || inventory.isOpen() || backup.isOpen() || docs.isOpen() || community.isOpen() || !helpEl.classList.contains('hidden') || !startEl.classList.contains('hidden') || !introEl.classList.contains('hidden') || !graphicsEl.classList.contains('hidden');
 }
 
 function overlayOpen() {
@@ -931,6 +966,28 @@ function openBackup() {
   backup.open();
 }
 
+function paintGraphics() {
+  document.querySelectorAll('#graphics [data-water]').forEach((button) => {
+    button.classList.toggle('on', button.dataset.water === gfx.water);
+  });
+  document.querySelectorAll('#graphics [data-light]').forEach((button) => {
+    button.classList.toggle('on', button.dataset.light === gfx.light);
+  });
+}
+
+function openGraphics() {
+  if (editor.isOpen()) return;
+  paintGraphics();
+  graphicsEl.classList.remove('hidden');
+  pauseEl.classList.add('hidden');
+  if (started) unlockForUi();
+}
+
+function closeGraphics() {
+  graphicsEl.classList.add('hidden');
+  if (started) lock();
+}
+
 function openCommunity() {
   if (editor.isOpen()) return;
   community.open();
@@ -965,6 +1022,7 @@ function logout() {
 
 function applyPalacePreset(preset) {
   world.init(preset.world || { removed: [], placed: [] });
+  applyLights(renderer, sunLight, world.meshes(), gfx);
   if (preset.spawn) player.place(preset.spawn);
   for (const note of notes) {
     const pos = parseShelf(note.shelf);

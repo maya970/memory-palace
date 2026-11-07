@@ -303,6 +303,19 @@ function drawGlassTint(ctx, tint) {
   ctx.fillRect(0, 15, 16, 1);
 }
 
+function drawWater(ctx) {
+  ctx.clearRect(0, 0, 16, 16);
+  for (let y = 0; y < 16; y += 1) {
+    for (let x = 0; x < 16; x += 1) {
+      const wave = Math.sin((x + y * 0.35) * 0.9) * 0.5 + 0.5;
+      const g = 70 + Math.round(wave * 50);
+      const b = 130 + Math.round(wave * 70);
+      ctx.fillStyle = `rgba(20, ${g}, ${b}, 0.8)`;
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+}
+
 function styledTextures(block, seed) {
   if (block.look === 'log') {
     const side = canvas((ctx) => drawLog(ctx, block.bark, seed, false));
@@ -316,6 +329,7 @@ function styledTextures(block, seed) {
     else if (block.look === 'metal') drawMetal(ctx, block.colors, seed);
     else if (block.look === 'leaves') drawLeaves(ctx, block.colors, seed);
     else if (block.look === 'glass') drawGlassTint(ctx, block.tint);
+    else if (block.look === 'water') drawWater(ctx);
     else if (block.look === 'bands') {
       for (let y = 0; y < 16; y += 1) {
         ctx.fillStyle = block.colors[Math.floor(y / 2) % block.colors.length];

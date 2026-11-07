@@ -146,6 +146,33 @@ export function band(g, x0, y, z0, x1, z1, type) {
   }
 }
 
-export function finish(id, name, lead, g, spawn, credit) {
-  return palace(id, name, lead, g.placed(), spawn, credit);
+export function finish(id, name, lead, g, spawn, credit, country) {
+  return palace(id, name, lead, g.placed(), spawn, credit, country);
+}
+
+export function study(g, x, y, z) {
+  g.set(x, y, z, 'writing_desk');
+  g.set(x + 2, y, z, 'oak_chair');
+  g.set(x - 2, y, z, 'bookshelf');
+  g.set(x - 2, y + 1, z, 'bookshelf');
+  g.set(x - 2, y + 2, z, 'bookshelf');
+  g.cover(x, y, z, 'open_notebook');
+}
+
+export function chamber(g, x, y, z) {
+  g.set(x, y, z, 'bed');
+  g.cover(x, y, z, 'sheet_white');
+  g.set(x + 1, y, z, 'nightstand');
+  g.cover(x + 1, y, z, 'candle');
+  g.set(x + 3, y, z, 'wardrobe');
+  g.set(x + 3, y, z + 1, 'coat');
+}
+
+export function teaRoom(g, x, y, z) {
+  g.set(x, y, z, 'tea_table');
+  g.cover(x, y, z, 'cloth_green');
+  g.set(x + 2, y, z, 'oak_chair');
+  g.set(x - 2, y, z, 'stool');
+  g.set(x, y, z + 2, 'sideboard');
+  g.cover(x, y, z + 2, 'teapot');
 }

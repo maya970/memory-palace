@@ -742,6 +742,25 @@ body.account-pending #compass { top: 58px; }
 .mods-card p { margin: 0; color: rgba(245, 245, 247, 0.72); line-height: 1.45; }
 .mods-card .community-actions { flex-direction: row; flex-wrap: wrap; min-width: 0; }
 
+.gfx-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+.gfx-row button {
+  width: auto;
+  margin: 0;
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f5f5f7;
+}
+.gfx-row button.on {
+  background: rgba(255, 255, 255, 0.22);
+}
+
 @media (max-width: 800px) {
   .mods-head {
     grid-template-columns: 1fr auto;

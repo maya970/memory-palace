@@ -65,12 +65,13 @@ export function kit(placed, x = -2, z = 0) {
   placed.covers.push([x + 2, 1, z, 'open_notebook']);
 }
 
-export function palace(id, name, lead, placed, spawn, credit) {
+export function palace(id, name, lead, placed, spawn, credit, country) {
   const covers = placed.covers || [];
   return {
     id,
     name,
     lead,
+    country: country || '',
     credit: credit || '宫殿自制。风格取自已进入公有领域的历史建筑类型，不是某座现代测绘或商标地标。',
     spawn: spawn || SOUTH,
     world: { removed: [], placed, covers },

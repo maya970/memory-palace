@@ -1,6 +1,6 @@
 import { disk } from './presets-lib.js';
 import {
-  band, capital, checker, cornice, finish, grid, lancetX, lancetZ, portalZ, shaft,
+  band, capital, chamber, checker, cornice, finish, grid, lancetX, lancetZ, portalZ, shaft, study, teaRoom,
 } from './presets-ornament.js';
 
 function pinnacle(g, x, z, y0, h, stone) {
@@ -14,6 +14,7 @@ function pinnacle(g, x, z, y0, h, stone) {
 
 export function gothicWater() {
   const g = grid();
+  g.box(-42, -1, -34, 42, -1, 34, 'dirt');
   g.box(-44, 0, -36, 44, 1, 36, 'water');
   g.box(-18, -1, -26, 18, 3, 18, 'stone_bricks');
   checker(g, -12, 3, -20, 12, 12, 'stone_bricks', 'deepslate');
@@ -67,21 +68,35 @@ export function gothicWater() {
   pinnacle(g, -10, -20, 29, 16, 'stone_bricks');
   pinnacle(g, 10, -20, 29, 16, 'stone_bricks');
   pinnacle(g, 0, -20, 31, 20, 'deepslate');
-  g.set(-6, 4, -12, 'bookshelf');
-  g.set(-6, 5, -12, 'bookshelf');
-  g.set(-6, 6, -12, 'bookshelf');
-  g.set(6, 4, -12, 'bookshelf');
-  g.set(6, 5, -12, 'bookshelf');
-  g.set(0, 4, -8, 'writing_desk');
-  g.set(-2, 4, -8, 'oak_chair');
-  g.cover(0, 4, -8, 'open_notebook');
+  for (let z = -14; z <= 6; z += 3) {
+    g.set(-8, 4, z, 'bench');
+    g.set(8, 4, z, 'bench');
+    g.cover(-8, 4, z, 'cushion');
+    g.set(-8, 5, z, 'candle');
+  }
+  g.set(0, 4, -16, 'sideboard');
+  g.cover(0, 4, -16, 'candle');
+  g.set(-2, 4, -16, 'gold');
+  g.set(2, 4, -16, 'gold');
+  g.box(13, 3, -8, 22, 12, 4, 'stone_bricks', (x, y, z) => x > 13 && x < 22 && z > -8 && z < 4);
+  checker(g, 14, 3, -7, 21, 3, 'stone_bricks', 'wool_red');
+  g.carve(12, 4, -2, 13, 8, 0);
+  study(g, 18, 4, -4);
+  g.set(16, 4, 1, 'bookshelf');
+  g.set(16, 5, 1, 'bookshelf');
+  g.set(20, 4, 1, 'chalkboard');
+  g.box(-22, 3, -8, -13, 12, 4, 'stone_bricks', (x, y, z) => x > -22 && x < -13 && z > -8 && z < 4);
+  checker(g, -21, 3, -7, -14, 3, 'deepslate', 'wool_purple');
+  g.carve(-13, 4, -2, -12, 8, 0);
+  chamber(g, -18, 4, -4);
   return finish(
     'gothic_water',
-    '水上哥特中厅',
-    '从桥走进去。尖券窗有棂和彩玻璃，门是三层叠涩，柱有柱头，腰线贴金。',
+    '法国·哥特中厅',
+    '从桥走进中厅。两侧有长凳和蜡烛，东厢是圣器室书桌，西厢是有床柜的小室。',
     g,
     { x: 0.5, y: 4, z: 26.5, yaw: Math.PI, pitch: -0.1 },
-    '仿哥特大教堂的中厅与西门，雕的是窗套、叠涩和尖塔，不是平面功能图。',
+    '仿法国哥特大教堂中厅与厢房，不是空壳。',
+    '法国',
   );
 }
 
@@ -126,26 +141,30 @@ export function civicPalace() {
     shaft(g, -10, z, 5, 16, 'quartz');
     shaft(g, 10, z, 5, 16, 'quartz');
   }
-  g.set(-14, 4, -8, 'bookshelf');
-  g.set(-14, 5, -8, 'bookshelf');
-  g.set(-14, 6, -8, 'bookshelf');
-  g.set(14, 4, -8, 'bookshelf');
-  g.set(14, 5, -8, 'bookshelf');
-  g.set(0, 4, -6, 'writing_desk');
-  g.set(2, 4, -6, 'oak_chair');
-  g.cover(0, 4, -6, 'open_notebook');
+  study(g, -14, 4, -8);
+  study(g, 14, 4, -8);
+  g.set(-6, 4, 2, 'oak_table');
+  g.cover(-6, 4, 2, 'cloth_red');
+  g.set(-4, 4, 2, 'oak_chair');
+  g.set(-8, 4, 2, 'oak_chair');
+  g.set(6, 4, 2, 'sofa');
+  g.cover(6, 4, 2, 'pillow_blue');
+  g.set(10, 4, -4, 'chalkboard');
+  chamber(g, -18, 4, 4);
   return finish(
     'civic_palace',
-    '柱廊门面',
-    '从台阶走进门廊。柱有础有头，窗有套有楣，檐口一齿一金。',
+    '意大利·柱廊宫殿',
+    '台阶进门廊。大厅有长桌、沙发和两侧书房，西翼有卧房。',
     g,
     { x: 0.5, y: 4, z: 22.5, yaw: Math.PI, pitch: -0.12 },
-    '仿新古典宫殿正面。人从台阶走进去，先看见柱列和窗饰。',
+    '仿意大利宫殿门面与一层厅室。',
+    '意大利',
   );
 }
 
 export function tajExcerpt() {
   const g = grid();
+  g.box(-26, -1, -26, 26, -1, 26, 'sand');
   g.box(-28, 0, -28, 28, 0, 28, 'water');
   g.box(-4, 1, 16, 4, 1, 28, 'quartz');
   g.box(-18, 1, -18, 18, 1, 18, 'quartz');
@@ -181,17 +200,30 @@ export function tajExcerpt() {
   g.set(0, 35, 0, 'gold');
   shaft(g, -6, 0, 3, 14, 'quartz');
   shaft(g, 6, 0, 3, 14, 'quartz');
-  g.set(-8, 3, -8, 'bookshelf');
-  g.set(-8, 4, -8, 'bookshelf');
-  g.set(0, 3, -4, 'writing_desk');
-  g.cover(0, 3, -4, 'open_notebook');
+  g.box(-3, 3, -3, 3, 6, 3, 'quartz', (x, y, z) => Math.abs(x) < 2 && Math.abs(z) < 2 && y > 3);
+  g.set(0, 3, 0, 'gold');
+  g.set(0, 4, 0, 'lapis');
+  g.set(-1, 3, 0, 'gold');
+  g.set(1, 3, 0, 'gold');
+  for (const z of [-8, 8]) {
+    for (let x = -10; x <= 10; x += 4) g.set(x, 3, z, 'wool_white');
+  }
+  g.set(-10, 3, -10, 'glowstone');
+  g.set(10, 3, -10, 'glowstone');
+  g.set(-10, 3, 10, 'glowstone');
+  g.set(10, 3, 10, 'glowstone');
+  study(g, -10, 3, 0);
+  chamber(g, 8, 3, 0);
+  g.set(4, 3, -10, 'screen');
+  g.set(-4, 3, -10, 'screen');
   return finish(
     'taj_excerpt',
-    '白石陵墓',
-    '从石道走进拱门。四角塔、腰线青金、洋葱顶和尖券窗。',
+    '印度·白石陵墓',
+    '石道进门。中央是贴金青金石棺台，两侧有书房和卧房，角上有灯。',
     g,
     { x: 0.5, y: 2, z: 24.5, yaw: Math.PI, pitch: -0.14 },
-    '仿泰姬陵常见的白石、尖券与洋葱顶，截取可走进的一层。',
+    '仿印度白石陵的一层厅室，不是空穹顶。',
+    '印度',
   );
 }
 
@@ -227,16 +259,24 @@ export function longCorridor() {
     g.set(x, 9, -1, 'gold');
     g.set(x, 9, 7, 'gold');
   }
-  g.set(-2, 2, 3, 'writing_desk');
-  g.set(2, 2, 3, 'oak_chair');
-  g.set(-8, 2, 2, 'bookshelf');
-  g.cover(-2, 2, 3, 'open_notebook');
+  for (const cx of [-24, 0, 24]) {
+    g.box(cx - 6, 1, 8, cx + 6, 10, 18, 'planks', (x, y, z) => x > cx - 6 && x < cx + 6 && z > 8 && z < 18);
+    g.carve(cx - 1, 2, 6, cx + 1, 6, 8);
+    checker(g, cx - 5, 1, 9, cx + 5, 17, 'planks', 'wool_red');
+    g.box(cx - 6, 10, 8, cx + 6, 11, 18, 'dark_oak_planks');
+  }
+  teaRoom(g, -24, 2, 12);
+  study(g, 0, 2, 12);
+  chamber(g, 22, 2, 12);
+  g.set(24, 2, 16, 'screen');
+  g.set(-20, 2, 16, 'plant_pot');
   return finish(
     'long_corridor',
-    '彩绘长廊',
-    '红柱、金枋、彩绘天花和步步窗格。人从廊心一直走过去。',
+    '中国·彩绘长廊',
+    '红柱金枋的长廊，北侧三间侧厅：茶室、书房、卧房。',
     g,
     { x: 0.5, y: 2, z: 3.5, yaw: Math.PI / 2, pitch: -0.04 },
-    '仿颐和园长廊的红柱彩绘，截取一段可走的廊，不是一条光秃走廊。',
+    '仿中国园林长廊与侧厅陈设。',
+    '中国',
   );
 }

@@ -55,6 +55,7 @@ export function catalog() {
       official: true,
       author: '记忆宫殿',
       lead: item.lead,
+      country: item.country,
       credit: item.credit,
       spawn: item.spawn,
       world: item.world,
@@ -65,7 +66,7 @@ export function catalog() {
 }
 
 function haystack(item) {
-  return `${item.name || ''} ${item.author || ''} ${item.lead || ''} ${item.credit || ''} ${item.id || ''}`.toLowerCase();
+  return `${item.name || ''} ${item.author || ''} ${item.lead || ''} ${item.credit || ''} ${item.country || ''} ${item.id || ''}`.toLowerCase();
 }
 
 export function searchCatalog(query, source, part) {

@@ -4,6 +4,7 @@ import { BLOCKS } from './blocks.js';
 import { furnitureGeometry, surfaceLift } from './furniture.js';
 import { texturesFor } from './textures.js';
 import { buildBase } from './palace.js';
+import { loadGraphics } from './graphics.js';
 
 const MAX = 40000;
 
@@ -44,8 +45,9 @@ function lambert(map, transparent) {
 }
 
 export class World {
-  constructor(scene) {
+  constructor(scene, water) {
     this.scene = scene;
+    this.water = water;
     this.blocks = new Map();
     this.base = new Map();
     this.index = new Map();
@@ -65,8 +67,13 @@ export class World {
       this.base.set(keyOf(x, y, z), type);
     });
     this.blocks = new Map(this.base);
+    this.water?.clear();
     if (diff) this.applyDiff(diff);
     this.rebuildMeshes();
+  }
+
+  meshLiquid() {
+    return loadGraphics().water === 'cube';
   }
 
   clear() {
@@ -110,6 +117,7 @@ export class World {
     }
     for (const [key, type] of this.blocks) {
       if (this.base.has(key)) continue;
+      if (this.water?.flowed.has(key)) continue;
       const [x, y, z] = key.split(',').map(Number);
       placed.push([x, y, z, type]);
     }
@@ -132,9 +140,11 @@ export class World {
     this.index.clear();
     this.shelves.clear();
     for (const [key, type] of this.blocks) {
+      if (type === 'water' && !this.meshLiquid()) continue;
       const [x, y, z] = key.split(',').map(Number);
       this.attach(key, type, x, y, z, true, 0);
     }
+    this.water?.rebuild(this, loadGraphics());
     for (const [key, type] of this.covers) {
       const [x, y, z] = key.split(',').map(Number);
       this.attach(`c:${key}`, type, x, y, z, true, surfaceLift(BLOCKS[this.blocks.get(key)]));
@@ -217,10 +227,11 @@ export class World {
     return BLOCKS[type]?.solid !== false;
   }
 
-  setBlock(x, y, z, type) {
+  setBlock(x, y, z, type, origin = 'world') {
     const key = keyOf(x, y, z);
     const prev = this.blocks.get(key) || null;
     if (prev === type) return true;
+    if (prev === 'water') this.water?.forget(x, y, z);
     if (prev) this.detach(key);
     if (!type || !BLOCKS[type]?.furnish) {
       if (this.covers.has(key)) this.setCover(x, y, z, null);
@@ -229,9 +240,24 @@ export class World {
       this.blocks.delete(key);
       return true;
     }
-    if (!this.attach(key, type, x, y, z, false, 0)) return false;
     this.blocks.set(key, type);
+    if (type === 'water') {
+      if (origin === 'player') this.water?.markSource(x, y, z);
+      if (origin === 'flow') this.water?.flowed.add(key);
+      this.water?.invalidate();
+      if (!this.meshLiquid()) return true;
+    }
+    if (!this.attach(key, type, x, y, z, false, 0)) {
+      this.blocks.delete(key);
+      return false;
+    }
     return true;
+  }
+
+  meshes() {
+    const list = [];
+    for (const group of this.groups.values()) list.push(...group.meshes);
+    return list;
   }
 
   setCover(x, y, z, type) {

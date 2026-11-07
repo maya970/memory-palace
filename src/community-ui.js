@@ -53,7 +53,7 @@ export function createCommunity(root, hooks) {
     const items = searchCatalog(search.value, source, part);
     count.textContent = `${items.length} 个模组`;
     list.innerHTML = items.map((item) => `<article class="mods-card">
-      <p class="apple-kicker">${item.official ? '官方' : '玩家'} · ${item.part === 'palace' ? '宫殿' : '家具'} · ${escapeHtml(item.author || '未署名')}</p>
+      <p class="apple-kicker">${item.official ? '官方' : '玩家'} · ${item.part === 'palace' ? '宫殿' : '家具'}${item.country ? ` · ${escapeHtml(item.country)}` : ''} · ${escapeHtml(item.author || '未署名')}</p>
       <h3>${escapeHtml(item.name)}</h3>
       <p>${escapeHtml(item.lead || item.credit || '')}</p>
       <div class="community-actions">

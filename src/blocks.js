@@ -30,7 +30,7 @@ export const EXTRA_BLOCKS = [
   { id: 'obsidian', name: '黑曜石', color: '#1a1028', group: '建筑', look: 'noise', colors: ['#140e22', '#241838', '#0e0a16', '#3a2860'] },
   { id: 'snow', name: '雪块', color: '#f4f7fb', group: '建筑', look: 'noise', colors: ['#f7f9fc', '#e6eef6', '#ffffff', '#d5e0ea'] },
   { id: 'ice', name: '冰', color: '#a5d6e8', group: '建筑', look: 'glass', tint: 'rgba(150, 210, 230, 0.55)', transparent: true },
-  { id: 'water', name: '水', color: '#2a6aa8', group: '建筑', look: 'glass', tint: 'rgba(30, 90, 160, 0.55)', transparent: true, solid: false },
+  { id: 'water', name: '水', color: '#2a6aa8', group: '建筑', look: 'water', transparent: true, solid: false, liquid: true },
   { id: 'oak_leaves', name: '橡树树叶', color: '#3d8c3a', group: '建筑', look: 'leaves', colors: ['#2f7a32', '#3e8f38', '#4aa046', '#2a682c'], transparent: true },
   { id: 'moss', name: '苔藓块', color: '#4a6e32', group: '建筑', look: 'noise', colors: ['#3e6228', '#567e3a', '#2f501e', '#6a9448'] },
   { id: 'clay', name: '陶瓦', color: '#a08070', group: '建筑', look: 'smooth', colors: ['#b09080', '#947868', '#c4a090'] },
