@@ -21,6 +21,7 @@ export function createEditor(root, hooks) {
   const fileInput = root.querySelector('#docx-input');
   const publicBox = root.querySelector('#public-box');
   const publicPage = root.querySelector('#public-page');
+  const publicSee = root.querySelector('#public-see');
   const publicAr = root.querySelector('#public-ar');
   const publicButton = root.querySelector('#note-public');
   let note = null;
@@ -310,16 +311,34 @@ export function createEditor(root, hooks) {
 
   function paintPublic() {
     const id = note?.publicRef;
-    publicBox.classList.toggle('hidden', mode === 'visit' || !id);
+    publicBox.classList.toggle('hidden', mode === 'visit');
     publicButton.textContent = id ? '再公开一次' : '公开这篇';
     if (!id) {
       publicPage.value = '';
+      if (publicSee) publicSee.value = '';
       publicAr.value = '';
       return;
     }
     const origin = location.origin;
     publicPage.value = `${origin}/library.html?note=${encodeURIComponent(id)}`;
+    if (publicSee) publicSee.value = `${origin}/?see=${encodeURIComponent(id)}`;
     publicAr.value = `https://arweave.net/${id}`;
+  }
+
+  async function copyField(field, okText) {
+    const text = field?.value?.trim();
+    if (!text) {
+      status.textContent = '还没有独立链接，先点「公开这篇」';
+      return;
+    }
+    field.focus();
+    field.select();
+    try {
+      await navigator.clipboard.writeText(text);
+      status.textContent = okText;
+    } catch {
+      status.textContent = '链接已选中，按 Ctrl+C 复制';
+    }
   }
 
   root.querySelector('#book-close').addEventListener('click', () => hooks.onClose());
@@ -347,8 +366,17 @@ export function createEditor(root, hooks) {
       note.publicRef = published.id;
       hooks.onChange(note);
       paintPublic();
-      status.textContent = '已经公开，链接可以发给别人';
-      hooks.onToast('公开链接已生成。Arweave 有延时，稍后才能打开。');
+      publicBox.scrollIntoView({ block: 'nearest' });
+      const link = publicPage.value;
+      publicPage.focus();
+      publicPage.select();
+      try {
+        await navigator.clipboard.writeText(link);
+        status.textContent = `独立链接已复制：${link}`;
+      } catch {
+        status.textContent = `独立链接：${link}（已选中，按 Ctrl+C 复制）`;
+      }
+      hooks.onToast(link, 20000);
     } catch (error) {
       status.textContent = error?.message || '没有公开成功';
       hooks.onToast(error?.message || '没有公开成功');
@@ -357,17 +385,14 @@ export function createEditor(root, hooks) {
       publicButton.disabled = false;
     }
   });
-  root.querySelector('#public-copy').addEventListener('click', async () => {
-    if (!publicPage.value) return;
-    try {
-      await navigator.clipboard.writeText(publicPage.value);
-      status.textContent = '阅读页已复制';
-    } catch {
-      publicPage.select();
-      status.textContent = '请手动复制阅读页';
-    }
+  root.querySelector('#public-copy').addEventListener('click', () => {
+    copyField(publicPage, '独立阅读链接已复制');
+  });
+  root.querySelector('#public-copy-see')?.addEventListener('click', () => {
+    copyField(publicSee, '参观链接已复制');
   });
   publicPage.addEventListener('click', () => publicPage.select());
+  publicSee?.addEventListener('click', () => publicSee.select());
   publicAr.addEventListener('click', () => publicAr.select());
 
   function snapshot() {

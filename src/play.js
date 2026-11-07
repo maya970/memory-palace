@@ -184,6 +184,52 @@ const ghost = new THREE.Mesh(
 ghost.visible = false;
 scene.add(ghost);
 
+const beaconChip = document.querySelector('#beacon-chip');
+const beacon = (() => {
+  const group = new THREE.Group();
+  group.visible = false;
+  const glow = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.42, 0.58, 96, 16, 1, true),
+    new THREE.MeshBasicMaterial({
+      color: 0x7ecbff,
+      transparent: true,
+      opacity: 0.22,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }),
+  );
+  glow.position.y = 48;
+  const core = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.11, 0.16, 96, 8, 1, true),
+    new THREE.MeshBasicMaterial({
+      color: 0xe8f6ff,
+      transparent: true,
+      opacity: 0.72,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }),
+  );
+  core.position.y = 48;
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.5, 0.92, 28),
+    new THREE.MeshBasicMaterial({
+      color: 0x9fd4ff,
+      transparent: true,
+      opacity: 0.9,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    }),
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.03;
+  group.add(glow, core, ring);
+  scene.add(group);
+  return { group, glow, core };
+})();
+let beaconAt = null;
+
 const labelPool = Array.from({ length: 8 }, () => {
   const div = document.createElement('div');
   div.className = 'nametag';
@@ -331,6 +377,10 @@ document.querySelector('#pause-leave-visit').addEventListener('click', () => {
 });
 document.querySelector('#pause-logout').addEventListener('click', logout);
 document.querySelector('#pause-help').addEventListener('click', openHelp);
+beaconChip?.addEventListener('click', (event) => {
+  event.preventDefault();
+  goToBeacon();
+});
 document.querySelector('#help-close').addEventListener('click', () => {
   helpEl.classList.add('hidden');
   if (started) lock();
@@ -507,6 +557,12 @@ window.addEventListener('keydown', (event) => {
     else openDocs();
     return;
   }
+  if (event.code === 'KeyV' && started && !editor.isOpen()) {
+    event.preventDefault();
+    if (!beaconAt) toast('还没有刚放下的格子');
+    else goToBeacon();
+    return;
+  }
   if (overlayOpen()) return;
   if (event.repeat) {
     setMoveFlag(event.code, true);
@@ -573,6 +629,10 @@ function frame(now) {
   updateAim(inPlay());
   updateLabels(inPlay());
   updateHud();
+  if (beacon.group.visible) {
+    beacon.core.material.opacity = 0.5 + Math.sin(now * 0.004) * 0.22;
+    beacon.glow.rotation.y = now * 0.00045;
+  }
   hud.classList.toggle('writing', editor.isOpen());
   particles.update(dt);
   clouds.position.x = reducedMotion ? 0 : Math.sin(now * 0.00004) * 6;
@@ -672,6 +732,7 @@ function breakAimed() {
     return;
   }
   if (!aimed || !BLOCKS[aimed.type]?.breakable) return;
+  if (beaconHits(aimed.x, aimed.y, aimed.z)) clearBeacon();
   const { x, y, z } = aimed;
   const cover = world.getCover(x, y, z);
   if (cover) {
@@ -749,6 +810,7 @@ function useAimed() {
   const spent = inventory.consumeSelected();
   if (spent?.noteId) bindShelfNote(spent.noteId, spot.x, spot.y, spot.z);
   sfx.place();
+  markBeacon(spot.x, spot.y, spot.z, BLOCKS[held]?.name || '刚放下的格子');
   saveSoon();
 }
 
@@ -784,6 +846,7 @@ function openShelf(x, y, z) {
     notes.push(note);
   }
   sfx.open();
+  if (beaconHits(x, y, z)) clearBeacon();
   unlockForUi();
   pauseEl.classList.add('hidden');
   editor.open(note, `${regionName(x, z)} · ${x}, ${y}, ${z}`, visitMode ? 'visit' : 'shelf');
@@ -824,7 +887,10 @@ function saveWriteDrop() {
   keepDraft(note);
   const cell = dropNoteInRoom(world, notes, note);
   if (!cell) toast('头顶没有遮挡，不能投放。先进入一座有屋顶的宫殿。');
-  else toast(`已经放到 ${cell.x}, ${cell.y}, ${cell.z}，进去后自己整理`);
+  else {
+    markBeacon(cell.x, cell.y, cell.z, '随机存放');
+    toast(`已经放到 ${cell.x}, ${cell.y}, ${cell.z}。光柱是信标，点左下角或按 V 就能找到`);
+  }
   community.refresh();
   saveSoon();
   if (started) lock();
@@ -1300,7 +1366,41 @@ async function applyPalacePreset(preset) {
   }
 }
 
+function paintBeaconChip() {
+  if (!beaconChip) return;
+  if (!beaconAt) {
+    beaconChip.classList.add('hidden');
+    return;
+  }
+  beaconChip.classList.remove('hidden');
+  beaconChip.innerHTML = `${beaconAt.label}<small>${beaconAt.x}, ${beaconAt.y}, ${beaconAt.z} · 点这里或按 V</small>`;
+}
+
+function markBeacon(x, y, z, label) {
+  if (visitMode) return;
+  beaconAt = { x, y, z, label: label || '刚放下的格子' };
+  beacon.group.visible = true;
+  beacon.group.position.set(x + 0.5, y, z + 0.5);
+  paintBeaconChip();
+}
+
+function clearBeacon() {
+  beaconAt = null;
+  beacon.group.visible = false;
+  paintBeaconChip();
+}
+
+function beaconHits(x, y, z) {
+  return beaconAt && beaconAt.x === x && beaconAt.y === y && beaconAt.z === z;
+}
+
+function goToBeacon() {
+  if (!beaconAt || !started) return;
+  gotoDrop(beaconAt.x, beaconAt.y, beaconAt.z);
+}
+
 function gotoDrop(x, y, z) {
+  markBeacon(x, y, z, '要找的格子');
   const look = { x: x + 0.5, y, z: z + 0.5, yaw: player.yaw, pitch: -0.12 };
   community.close();
   if (started) {

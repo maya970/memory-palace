@@ -23,6 +23,10 @@
     <div id="cue-banner" class="hidden"></div>
     <div id="crosshair"></div>
     <div id="prompt"></div>
+    <button id="beacon-chip" class="hidden" type="button">
+      刚放下的格子
+      <small>点这里或按 V，光柱会一直亮着</small>
+    </button>
     <div id="hotbar-wrap">
       <div id="hotbar-name"></div>
       <div id="hotbar"></div>
@@ -219,7 +223,7 @@
         <section>
           <h3>位点</h3>
           <p>对准书架、摊开的笔记或一叠信，按 F 或右键打开。桌子、床、衣柜只是家具，要把笔记本放到桌面上再打开。按住 Shift 再右键，才会把手里的东西贴到表面上。</p>
-          <p>桌布床单仍铺在桌面或床上。笔记、笔、信、茶杯可以贴在地面、墙面、床沿、柜侧，不限于桌面。拆掉写过字的那一格，笔记会一起进背包。</p>
+          <p>桌布床单仍铺在桌面或床上。笔记、笔、信、茶杯可以贴在地面、墙面、床沿、柜侧，不限于桌面。拆掉写过字的那一格，笔记会一起进背包。随机存放或刚放下的方块会竖起一道信标光柱，点左下角或按 V 就能走过去。</p>
         </section>
         <section>
           <h3>这本笔记</h3>
@@ -427,14 +431,18 @@
         </span>
       </footer>
       <div id="public-box" class="public-box hidden">
-        <p>公开后任何人都能打开这篇笔记，也会带上当前这座宫殿。Arweave 上不能撤回。改过之后再公开一次，会得到新链接。</p>
-        <label>阅读页
+        <p>这篇笔记有独立链接。发给别人后，他们打开只能读，改不了你的原稿。Arweave 上不能撤回。再公开一次会得到新链接。</p>
+        <label>独立阅读链接
           <input id="public-page" type="text" readonly />
+        </label>
+        <label>走进宫殿（只看）
+          <input id="public-see" type="text" readonly />
         </label>
         <label>Arweave
           <input id="public-ar" type="text" readonly />
         </label>
-        <button id="public-copy" type="button">复制阅读页</button>
+        <button id="public-copy" type="button">复制独立链接</button>
+        <button id="public-copy-see" type="button">复制参观链接</button>
       </div>
     </div>
   </div>
