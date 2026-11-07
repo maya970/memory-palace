@@ -997,7 +997,7 @@ function openBackup() {
 }
 
 function applyMood(indoor) {
-  lamp.intensity = gfx.light !== 'simple' && indoor ? 1.35 : 0;
+  lamp.intensity = gfx.light !== 'simple' && indoor ? 0.55 : 0;
   if (gfx.light === 'simple') {
     scene.environmentIntensity = 0;
     scene.background = new THREE.Color(0x8ec8ef);

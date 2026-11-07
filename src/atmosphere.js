@@ -38,12 +38,9 @@ const GRADE = {
         float lum = dot(sampleCol, vec3(0.30, 0.52, 0.18));
         shafts += smoothstep(0.58, 0.95, lum);
       }
-      shafts = (shafts / 16.0) * sunStrength * (1.0 - indoor);
+      shafts = (shafts / 16.0) * sunStrength * mix(1.0, 0.12, indoor);
       vec3 haze = sunTint * shafts * 0.55;
-      vec3 outdoor = src.rgb;
-      vec3 inside = src.rgb * vec3(1.12, 0.94, 0.78) + vec3(0.03, 0.015, 0.0);
-      vec3 color = mix(outdoor, inside, indoor);
-      color += haze;
+      vec3 color = src.rgb + haze;
       float vig = smoothstep(1.15, 0.28, distance(vUv, vec2(0.5)));
       color *= mix(0.78, 1.0, vig);
       gl_FragColor = vec4(color, src.a);
@@ -73,7 +70,7 @@ export class Atmosphere {
   setWeather(weather, indoor) {
     this.weather = weather;
     this.indoor = Boolean(indoor);
-    this.bloom.strength = indoor ? 0.38 : weather.bloom;
+    this.bloom.strength = weather.bloom;
     if (weather.sunColor != null) this.grade.uniforms.sunTint.value.set(weather.sunColor);
   }
 
@@ -96,7 +93,8 @@ export class Atmosphere {
     const clip = sun.position.clone().project(this.camera);
     const inFront = clip.z < 1 && clip.x > -1.4 && clip.x < 1.4 && clip.y > -1.4 && clip.y < 1.4;
     this.grade.uniforms.sunPos.value.set(clip.x * 0.5 + 0.5, clip.y * 0.5 + 0.5);
-    this.grade.uniforms.sunStrength.value = this.indoor ? 0 : inFront ? this.weather.shafts : 0.1;
+    const roof = this.indoor ? 0.12 : 1;
+    this.grade.uniforms.sunStrength.value = (inFront ? this.weather.shafts : 0.1) * roof;
     this.grade.uniforms.indoor.value = this.indoor ? 1 : 0;
     this.composer.render();
   }

@@ -6,37 +6,31 @@ export const WEATHERS = {
     label: '晴', wet: 0, snow: 0, puddle: 0, rain: 0, flakes: 0,
     fog: 0.0048, fogColor: 0x9ec4e8, sky: 0x87c5ea,
     sun: 2.55, hemi: 0.72, sunColor: 0xfff1d0, bloom: 0.26, shafts: 0.9,
-    indoorSun: 0.08, indoorHemi: 0.55, indoorColor: 0xffc27a,
   },
   rain: {
     label: '雨', wet: 0.84, snow: 0, puddle: 0.78, rain: 1, flakes: 0,
     fog: 0.02, fogColor: 0x6d7682, sky: 0x5c6570,
     sun: 0.5, hemi: 0.34, sunColor: 0xc8d0d8, bloom: 0.16, shafts: 0.12,
-    indoorSun: 0.05, indoorHemi: 0.62, indoorColor: 0xffb56a,
   },
   storm: {
     label: '雷暴', wet: 1, snow: 0, puddle: 0.95, rain: 1.7, flakes: 0,
     fog: 0.032, fogColor: 0x2e343c, sky: 0x252a32,
     sun: 0.18, hemi: 0.2, sunColor: 0x8899aa, bloom: 0.12, shafts: 0.04,
-    indoorSun: 0.04, indoorHemi: 0.7, indoorColor: 0xff9a4a,
   },
   mist: {
     label: '雾', wet: 0.28, snow: 0, puddle: 0.12, rain: 0, flakes: 0,
     fog: 0.046, fogColor: 0xc4b8a6, sky: 0xccc3b4,
     sun: 0.72, hemi: 0.46, sunColor: 0xe8dcc8, bloom: 0.22, shafts: 0.28,
-    indoorSun: 0.07, indoorHemi: 0.58, indoorColor: 0xffc090,
   },
   snow: {
     label: '雪', wet: 0, snow: 0.94, puddle: 0, rain: 0, flakes: 1,
     fog: 0.016, fogColor: 0xd5e2ee, sky: 0xdbe6f2,
     sun: 1.3, hemi: 0.64, sunColor: 0xf7fbff, bloom: 0.22, shafts: 0.32,
-    indoorSun: 0.08, indoorHemi: 0.6, indoorColor: 0xffd7a8,
   },
   dusk: {
     label: '黄昏', wet: 0, snow: 0, puddle: 0, rain: 0, flakes: 0,
     fog: 0.014, fogColor: 0xb08a62, sky: 0xb08a62,
     sun: 2.05, hemi: 0.36, sunColor: 0xffc17a, bloom: 0.48, shafts: 1,
-    indoorSun: 0.06, indoorHemi: 0.52, indoorColor: 0xffb060,
   },
 };
 
@@ -48,6 +42,7 @@ export const climate = {
 
 let pmrem;
 let envTarget;
+let bakedName = '';
 
 const SKY_VERT = `
 varying vec3 vDir;
@@ -126,13 +121,14 @@ export function makeSurface(map, transparent, type) {
   return mat;
 }
 
-function bakeSky(scene, weather, indoor) {
+function bakeSky(scene, weather, name) {
   if (!pmrem) return;
+  if (bakedName === name && envTarget) return;
+  bakedName = name;
   const wash = Math.min(1, weather.fog * 38);
-  const zenith = new THREE.Color(indoor ? 0x2a1a12 : weather.sky);
-  const horizon = new THREE.Color(indoor ? 0x1a120c : weather.fogColor);
-  if (!indoor) zenith.lerp(horizon, wash * 0.55);
-  const ground = new THREE.Color(indoor ? 0x1a120c : 0x2a221c);
+  const zenith = new THREE.Color(weather.sky).lerp(new THREE.Color(weather.fogColor), wash * 0.55);
+  const horizon = new THREE.Color(weather.fogColor);
+  const ground = new THREE.Color(0x2a221c);
   const probe = new THREE.Scene();
   const sky = new THREE.Mesh(
     new THREE.SphereGeometry(12, 24, 16),
@@ -148,7 +144,7 @@ function bakeSky(scene, weather, indoor) {
     }),
   );
   probe.add(sky);
-  const sunPower = indoor ? 0 : weather.sun * (1 - wash * 0.82);
+  const sunPower = weather.sun * (1 - wash * 0.82);
   let disc;
   if (sunPower > 0.04) {
     disc = new THREE.Mesh(
@@ -165,7 +161,7 @@ function bakeSky(scene, weather, indoor) {
   }
   envTarget = pmrem.fromScene(probe, 0.04);
   scene.environment = envTarget.texture;
-  scene.environmentIntensity = indoor ? 0.32 : 1;
+  scene.environmentIntensity = 1;
   sky.geometry.dispose();
   sky.material.dispose();
   if (disc) {
@@ -176,24 +172,25 @@ function bakeSky(scene, weather, indoor) {
 
 export function installEnvironment(renderer, scene) {
   pmrem = new THREE.PMREMGenerator(renderer);
-  bakeSky(scene, WEATHERS.dusk, false);
+  bakeSky(scene, WEATHERS.dusk, 'dusk');
 }
 
 export function setClimate(name, ctx, indoor) {
-  const w = WEATHERS[name] || WEATHERS.clear;
-  climate.uWet.value = indoor ? 0 : w.wet;
+  const key = WEATHERS[name] ? name : 'clear';
+  const w = WEATHERS[key];
+  climate.uWet.value = indoor ? w.wet * 0.2 : w.wet;
   climate.uSnow.value = indoor ? 0 : w.snow;
   climate.uPuddle.value = indoor ? 0 : w.puddle;
-  ctx.scene.background = new THREE.Color(indoor ? 0x1a120c : w.sky);
-  ctx.scene.fog = new THREE.FogExp2(indoor ? 0x1a120c : w.fogColor, indoor ? 0.008 : w.fog);
-  ctx.hemi.color.set(indoor ? w.indoorColor : w.sunColor);
-  ctx.hemi.groundColor.set(indoor ? 0x3a2418 : 0x3a2a22);
-  ctx.hemi.intensity = indoor ? w.indoorHemi : w.hemi;
-  ctx.sunLight.color.set(indoor ? w.indoorColor : w.sunColor);
-  ctx.sunLight.intensity = indoor ? w.indoorSun : w.sun;
+  ctx.scene.background = new THREE.Color(w.sky);
+  ctx.scene.fog = new THREE.FogExp2(w.fogColor, w.fog);
+  ctx.hemi.color.set(w.sunColor);
+  ctx.hemi.groundColor.set(0x3a2a22);
+  ctx.hemi.intensity = w.hemi;
+  ctx.sunLight.color.set(w.sunColor);
+  ctx.sunLight.intensity = w.sun;
   ctx.sun.material.color.set(w.sunColor);
-  ctx.sun.visible = !indoor;
-  bakeSky(ctx.scene, w, indoor);
+  ctx.sun.visible = true;
+  bakeSky(ctx.scene, w, key);
   ctx.atmosphere?.setWeather(w, indoor);
   return w;
 }
