@@ -31,6 +31,7 @@ import { createCommunity } from './community-ui.js';
 import { applySavedMods, dropNoteInRoom, hydrateMods } from './community.js';
 import { applyLights, loadGraphics, saveGraphics } from './graphics.js';
 import { WaterView } from './water.js';
+import { Atmosphere } from './atmosphere.js';
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const dirs = ['北', '东北', '东', '东南', '南', '西南', '西', '西北'];
@@ -65,8 +66,8 @@ const input = {
 };
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x8ec8ef);
-scene.fog = new THREE.Fog(0x8ec8ef, 52, 168);
+scene.background = new THREE.Color(0xb08a62);
+scene.fog = new THREE.FogExp2(0xb08a62, 0.012);
 
 const camera = new THREE.PerspectiveCamera(72, 1, 0.08, 400);
 camera.rotation.order = 'YXZ';
@@ -83,16 +84,16 @@ labelRenderer.domElement.style.pointerEvents = 'none';
 labelRenderer.domElement.style.zIndex = '1';
 view.appendChild(labelRenderer.domElement);
 
-const hemi = new THREE.HemisphereLight(0xd9eeff, 0x7d6848, 0.95);
-const sunLight = new THREE.DirectionalLight(0xfff5e0, 1.32);
-sunLight.position.set(42, 72, 26);
+const hemi = new THREE.HemisphereLight(0xffe6c4, 0x3a2a22, 0.42);
+const sunLight = new THREE.DirectionalLight(0xffd7a0, 2.1);
+sunLight.position.set(86, 34, 48);
 scene.add(hemi, sunLight);
 
 const sun = new THREE.Mesh(
-  new THREE.SphereGeometry(7, 20, 12),
-  new THREE.MeshBasicMaterial({ color: 0xfff4cf }),
+  new THREE.SphereGeometry(10, 24, 16),
+  new THREE.MeshBasicMaterial({ color: 0xffe4b0 }),
 );
-sun.position.set(78, 86, 46);
+sun.position.copy(sunLight.position).multiplyScalar(1.15);
 scene.add(sun);
 
 const clouds = makeClouds();
@@ -107,6 +108,8 @@ const world = new World(scene, waterView);
 const particles = new Particles(scene);
 world.init(save);
 applyLights(renderer, sunLight, world.meshes(), gfx);
+const atmosphere = new Atmosphere(renderer, scene, camera);
+applyMood();
 
 let notes = (save?.notes || buildStarterNotes()).map(normalizeNote);
 for (const note of notes) {
@@ -313,6 +316,7 @@ document.querySelectorAll('#graphics [data-light]').forEach((button) => {
     gfx = saveGraphics({ light: button.dataset.light });
     paintGraphics();
     applyLights(renderer, sunLight, world.meshes(), gfx);
+    applyMood();
   });
 });
 document.querySelector('#pause-write').addEventListener('click', openWriteFirst);
@@ -488,7 +492,7 @@ function frame(now) {
   hud.classList.toggle('writing', editor.isOpen());
   particles.update(dt);
   clouds.position.x = reducedMotion ? 0 : Math.sin(now * 0.00004) * 6;
-  waterView.update(now, gfx);
+  waterView.update(now, gfx, camera, sun);
   if (started) {
     flowAcc += dt;
     if (flowAcc > 0.28) {
@@ -497,7 +501,7 @@ function frame(now) {
     }
   }
   if (waterView.dirty) waterView.rebuild(world, gfx);
-  renderer.render(scene, camera);
+  atmosphere.render(now, sun, gfx.light !== 'simple');
   labelRenderer.render(scene, camera);
   gate.markReady();
   requestAnimationFrame(frame);
@@ -966,6 +970,20 @@ function openBackup() {
   backup.open();
 }
 
+function applyMood() {
+  if (gfx.light === 'simple') {
+    scene.background = new THREE.Color(0x8ec8ef);
+    scene.fog = new THREE.Fog(0x8ec8ef, 52, 168);
+    hemi.intensity = 0.95;
+    sunLight.intensity = 1.32;
+    return;
+  }
+  scene.background = new THREE.Color(0xb08a62);
+  scene.fog = new THREE.FogExp2(0xb08a62, 0.012);
+  hemi.intensity = 0.42;
+  sunLight.intensity = 2.1;
+}
+
 function paintGraphics() {
   document.querySelectorAll('#graphics [data-water]').forEach((button) => {
     button.classList.toggle('on', button.dataset.water === gfx.water);
@@ -1084,6 +1102,7 @@ function resize() {
   camera.updateProjectionMatrix();
   renderer.setSize(width, height);
   labelRenderer.setSize(width, height);
+  atmosphere.resize(width, height);
 }
 
 function makeClouds() {

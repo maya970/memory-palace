@@ -21,7 +21,7 @@ void main() {
   vec3 p = position;
   vNormal = normal;
   if (waves > 0.5 && normal.y > 0.5) {
-    p.y += sin(p.x * 1.8 + time * 2.2) * 0.045 + cos(p.z * 1.5 - time * 1.7) * 0.035;
+    p.y += sin(p.x * 1.8 + time * 2.2) * 0.06 + cos(p.z * 1.5 - time * 1.7) * 0.045;
   }
   vWorld = p;
   gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
@@ -30,14 +30,25 @@ void main() {
 
 const FRAG = `
 uniform float time;
+uniform vec3 sunDir;
+uniform vec3 eyePos;
 varying vec3 vWorld;
 varying vec3 vNormal;
 void main() {
+  vec3 n = normalize(vNormal);
   float ripple = sin(vWorld.x * 2.6 + time * 1.9) * sin(vWorld.z * 2.2 - time * 1.4);
-  vec3 deep = vec3(0.05, 0.24, 0.44);
-  vec3 bright = vec3(0.38, 0.72, 0.86);
-  vec3 col = mix(deep, bright, 0.42 + ripple * 0.18 + max(vNormal.y, 0.0) * 0.16);
-  float alpha = vNormal.y > 0.4 ? 0.58 : 0.78;
+  n = normalize(n + vec3(ripple * 0.15, 0.0, ripple * 0.12));
+  vec3 view = normalize(eyePos - vWorld);
+  vec3 light = normalize(sunDir);
+  float spec = pow(max(0.0, dot(reflect(-light, n), view)), 48.0);
+  float fres = pow(1.0 - max(0.0, dot(n, view)), 3.0);
+  vec3 deep = vec3(0.03, 0.16, 0.28);
+  vec3 bright = vec3(0.42, 0.72, 0.82);
+  vec3 sky = vec3(0.78, 0.72, 0.62);
+  vec3 col = mix(deep, bright, 0.38 + ripple * 0.2);
+  col = mix(col, sky, fres * 0.55);
+  col += vec3(1.0, 0.92, 0.75) * spec * 0.85;
+  float alpha = n.y > 0.4 ? 0.62 : 0.82;
   gl_FragColor = vec4(col, alpha);
 }
 `;
@@ -52,6 +63,8 @@ export class WaterView {
       uniforms: {
         time: { value: 0 },
         waves: { value: 1 },
+        sunDir: { value: new THREE.Vector3(0.4, 0.8, 0.3) },
+        eyePos: { value: new THREE.Vector3() },
       },
       vertexShader: VERT,
       fragmentShader: FRAG,
@@ -76,9 +89,11 @@ export class WaterView {
     this.flowed.delete(key);
   }
 
-  update(now, settings) {
+  update(now, settings, camera, sun) {
     this.material.uniforms.time.value = now * 0.001;
     this.material.uniforms.waves.value = settings.water === 'cube' ? 0 : 1;
+    if (camera) this.material.uniforms.eyePos.value.copy(camera.position);
+    if (sun) this.material.uniforms.sunDir.value.copy(sun.position).normalize();
   }
 
   clear() {

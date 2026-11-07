@@ -1,16 +1,19 @@
+import * as THREE from 'three';
+
 const KEY = 'memory-palace-graphics';
 
 const DEFAULTS = {
   water: 'flow',
-  light: 'simple',
+  light: 'cinematic',
 };
 
 export function loadGraphics() {
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) || '{}');
+    const light = saved.light === 'simple' ? 'simple' : 'cinematic';
     return {
       water: ['cube', 'still', 'flow'].includes(saved.water) ? saved.water : DEFAULTS.water,
-      light: saved.light === 'shadow' ? 'shadow' : 'simple',
+      light,
     };
   } catch {
     return { ...DEFAULTS };
@@ -24,21 +27,27 @@ export function saveGraphics(next) {
 }
 
 export function applyLights(renderer, sunLight, meshes, settings) {
-  const shadow = settings.light === 'shadow';
-  renderer.shadowMap.enabled = shadow;
+  const rich = settings.light !== 'simple';
+  renderer.shadowMap.enabled = rich;
   renderer.shadowMap.type = 2;
-  sunLight.castShadow = shadow;
-  if (shadow) {
-    sunLight.shadow.mapSize.set(1024, 1024);
+  renderer.toneMapping = rich ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
+  renderer.toneMappingExposure = rich ? 1.12 : 1;
+  sunLight.castShadow = rich;
+  sunLight.intensity = rich ? 2.1 : 1.32;
+  if (rich) {
+    sunLight.shadow.mapSize.set(2048, 2048);
+    sunLight.shadow.bias = -0.00035;
+    sunLight.shadow.normalBias = 0.04;
     sunLight.shadow.camera.near = 8;
-    sunLight.shadow.camera.far = 220;
-    sunLight.shadow.camera.left = -90;
-    sunLight.shadow.camera.right = 90;
-    sunLight.shadow.camera.top = 90;
-    sunLight.shadow.camera.bottom = -90;
+    sunLight.shadow.camera.far = 260;
+    sunLight.shadow.camera.left = -110;
+    sunLight.shadow.camera.right = 110;
+    sunLight.shadow.camera.top = 110;
+    sunLight.shadow.camera.bottom = -110;
+    sunLight.shadow.camera.updateProjectionMatrix();
   }
   for (const mesh of meshes) {
-    mesh.castShadow = shadow;
-    mesh.receiveShadow = shadow;
+    mesh.castShadow = rich;
+    mesh.receiveShadow = rich;
   }
 }

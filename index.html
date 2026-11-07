@@ -85,7 +85,7 @@
         <h2 data-i18n="graphics">画面</h2>
         <button id="graphics-close" type="button">关闭</button>
       </header>
-      <p class="apple-lead">水默认会向下流、从你放下的水源往旁边漫。带不动就改成「水面」或「方块」。阴影同样可以关掉。</p>
+      <p class="apple-lead">默认是电影级光影：体积感雾、丁达尔光、Bloom 和调色。带不动就改成「简单」。水会流淌，也可改成静水面或方块。</p>
       <p class="mods-label">水</p>
       <div class="gfx-row">
         <button type="button" data-water="flow">流淌</button>
@@ -94,8 +94,8 @@
       </div>
       <p class="mods-label">光影</p>
       <div class="gfx-row">
+        <button type="button" data-light="cinematic">电影级</button>
         <button type="button" data-light="simple">简单</button>
-        <button type="button" data-light="shadow">阴影</button>
       </div>
     </section>
   </div>
@@ -158,7 +158,7 @@
       <div class="help-grid">
         <section>
           <h3>走路与堆砌</h3>
-          <p>点击画面开始行走，Esc 停下。WASD 移动，空格跳跃，Shift 潜行。潜行时会贴着边沿，不会直接走下空处。Esc 里的「画面」可以改水的流淌和光影。</p>
+          <p>点击画面开始行走，Esc 停下。WASD 移动，空格跳跃，Shift 潜行。潜行时会贴着边沿，不会直接走下空处。Esc 里的「画面」默认电影级光影，带不动可改成简单。</p>
           <p>按 E 打开背包。右边是标准方块，拖进下方物品栏，或点一下放进当前选中的格子。拆掉的方块会叠进背包。不想要的，拖到「永久销毁」。数字键 1–9 和滚轮选择手里的那一格。</p>
         </section>
         <section>
