@@ -1,3 +1,4 @@
+/** 全部文档表：本机笔记 + 链上索引行。 */
 import { findManifest, manifestRows } from './chain.js';
 import { readStored } from './remote.js';
 import { parseShelf, plainText, sanitizeHtml } from './notes.js';

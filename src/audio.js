@@ -1,3 +1,4 @@
+/** 放置/拆除/打开书架的短音。需用户手势后才能解锁。 */
 let ctx;
 
 function context() {

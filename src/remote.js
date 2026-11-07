@@ -1,3 +1,7 @@
+/**
+ * 链上读写：Arweave ≤100KB 免费，更大走 Walrus 主网。
+ * 私人备份会记进 recentUploads；公开笔记 / 宫殿展览不会，避免目录里混入只读分享。
+ */
 import { buildBundle, byteLength, FREE_BYTES, joinWorld, noteStub, splitWorld } from './bundle.js';
 import { t } from './i18n.js';
 import { createWallets, loadWallets } from './wallets.js';
@@ -166,10 +170,12 @@ export function pieceRef(piece) {
   return typeof piece === 'string' ? piece : piece?.ref;
 }
 
+const PALACE_KINDS = new Set(['memory-palace', 'memory-palace-exhibit']);
+
 export async function resolveBundle(data, onProgress) {
   if (!data || typeof data !== 'object') throw new Error(t('notPalace'));
   if (data.version === 1 && Array.isArray(data.notes) && !data.kind) return buildBundle(data);
-  if (data.kind !== 'memory-palace') throw new Error(t('notPalace'));
+  if (!PALACE_KINDS.has(data.kind)) throw new Error(t('notPalace'));
   const fallback = data.store === 'walrus' ? 'walrus' : 'arweave';
   const sources = data.notes || [];
   const worldPieces = Array.isArray(data.world) ? data.world : [];
@@ -206,6 +212,77 @@ export async function loadRemote(store, id) {
 
 export function isPublicNote(data) {
   return data?.public === true && (data?.kind === 'memory-palace-note' || data?.kind === 'memory-palace-public');
+}
+
+export function isExhibit(data) {
+  return data?.public === true && data?.kind === 'memory-palace-exhibit';
+}
+
+export function exhibitUrl(id) {
+  return `${location.origin}/?see=${encodeURIComponent(id)}`;
+}
+
+function exhibitNote(note) {
+  return {
+    id: note.id,
+    title: note.title || '',
+    cue: note.cue || '',
+    order: note.order,
+    shelf: note.shelf || null,
+    html: sanitizeHtml(note.html || '<p><br></p>'),
+    updated: note.updated || Date.now(),
+  };
+}
+
+/** 整座宫殿+笔记做成只读展览。始终上 Arweave，不写入私人上传目录。 */
+export async function publishExhibit(bundle, onStatus) {
+  const wallets = loadWallets() || (await createWallets(), loadWallets());
+  if (!wallets?.arweave?.jwk) throw new Error('先创建或导入账户');
+  const notes = (bundle.notes || []).map(exhibitNote).filter((note) => !isEmptyNote(note));
+  const world = bundle.world || { removed: [], placed: [], covers: [] };
+  const inline = {
+    version: 2,
+    kind: 'memory-palace-exhibit',
+    public: true,
+    created: Date.now(),
+    player: bundle.player || null,
+    world,
+    notes,
+  };
+  onStatus?.(t('shareBusy'));
+  if (byteLength(JSON.stringify(inline)) <= FREE_BYTES) {
+    const id = await uploadArweave(JSON.stringify(inline), wallets.arweave.jwk, 'exhibit');
+    return { id, url: exhibitUrl(id), arweave: publicArweaveUrl(id) };
+  }
+  const stubs = [];
+  for (const note of notes) {
+    onStatus?.(t('savingAr', { label: note.title || note.cue || t('untitled') }));
+    const ref = await uploadArweave(JSON.stringify(note), wallets.arweave.jwk, 'exhibit-note');
+    stubs.push(noteStub(note, ref, 'arweave'));
+  }
+  const worldText = JSON.stringify(world);
+  const chunks = byteLength(worldText) > FREE_BYTES ? splitWorld(world) : [world];
+  const worldRefs = [];
+  for (let index = 0; index < chunks.length; index += 1) {
+    onStatus?.(chunks.length > 1
+      ? t('blockPosN', { index: index + 1, total: chunks.length })
+      : t('blockPos'));
+    const ref = await uploadArweave(JSON.stringify(chunks[index]), wallets.arweave.jwk, `exhibit-world-${index + 1}`);
+    worldRefs.push({ store: 'arweave', ref });
+  }
+  const manifest = {
+    version: 2,
+    kind: 'memory-palace-exhibit',
+    public: true,
+    created: Date.now(),
+    player: bundle.player || null,
+    world: worldRefs,
+    notes: stubs,
+    store: 'arweave',
+  };
+  onStatus?.(t('shareBusy'));
+  const id = await uploadArweave(JSON.stringify(manifest), wallets.arweave.jwk, 'exhibit');
+  return { id, url: exhibitUrl(id), arweave: publicArweaveUrl(id) };
 }
 
 export function publicNoteUrl(id) {

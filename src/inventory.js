@@ -1,3 +1,4 @@
+/** 物品栏与背包。拆带笔记的格子会把 noteId 一起收走。 */
 import { BLOCKS, DEFAULT_HOTBAR, TEMPLATES, WOOLS } from './blocks.js';
 
 export const HOTBAR_SIZE = 9;

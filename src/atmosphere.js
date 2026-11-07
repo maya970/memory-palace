@@ -1,3 +1,6 @@
+/**
+ * 雨雪：GPU 着色器按时间缓慢下落，避免粒子闪烁。电影级才启用。
+ */
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';

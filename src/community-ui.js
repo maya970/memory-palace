@@ -1,3 +1,4 @@
+/** 社区模组面板：筛选、导入、导出宫殿/家具。 */
 import specText from '../community-mod.md?raw';
 import { catalog, dropHistory, furnitureExport, importMod, officialFurniturePack, palaceExport, searchCatalog } from './community.js';
 import { palaceById } from './presets.js';

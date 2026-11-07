@@ -1,3 +1,6 @@
+/**
+ * 书架上文稿编辑器。shelf 写在格子里；compose 是先写一篇；visit 只读参观。
+ */
 import { sanitizeHtml, tableHtml, tsvToTable, VOCAB_TEMPLATE, isEmptyNote } from './notes.js';
 
 function closest(node, selector) {
@@ -58,7 +61,7 @@ export function createEditor(root, hooks) {
   }
 
   function pull() {
-    if (!note) return;
+    if (!note || mode === 'visit') return;
     note.title = title.value.trim().slice(0, 40);
     note.cue = cue.value.trim().slice(0, 32);
     const rawOrder = order.value.trim();
@@ -68,6 +71,7 @@ export function createEditor(root, hooks) {
   }
 
   function scheduleSave() {
+    if (mode === 'visit') return;
     status.textContent = '正在记住…';
     window.clearTimeout(timer);
     timer = window.setTimeout(() => {
@@ -291,15 +295,22 @@ export function createEditor(root, hooks) {
   });
 
   function paintMode() {
+    const visit = mode === 'visit';
     const compose = root.querySelector('#compose-actions');
-    compose.classList.toggle('hidden', mode === 'shelf');
-    root.querySelector('#note-save-bag').classList.toggle('hidden', mode !== 'compose');
-    root.querySelector('#note-detach').classList.toggle('hidden', mode !== 'shelf');
+    compose.classList.toggle('hidden', mode === 'shelf' || visit);
+    root.querySelector('#note-save-bag').classList.toggle('hidden', mode !== 'compose' || visit);
+    root.querySelector('#note-detach').classList.toggle('hidden', mode !== 'shelf' || visit);
+    root.querySelector('#toolbar').classList.toggle('hidden', visit);
+    publicButton.classList.toggle('hidden', visit);
+    page.contentEditable = visit ? 'false' : 'true';
+    title.readOnly = visit;
+    cue.readOnly = visit;
+    order.readOnly = visit;
   }
 
   function paintPublic() {
     const id = note?.publicRef;
-    publicBox.classList.toggle('hidden', !id);
+    publicBox.classList.toggle('hidden', mode === 'visit' || !id);
     publicButton.textContent = id ? '再公开一次' : '公开这篇';
     if (!id) {
       publicPage.value = '';
@@ -377,7 +388,7 @@ export function createEditor(root, hooks) {
       loc.textContent = location;
       root.classList.remove('hidden');
       tablePop.classList.add('hidden');
-      status.textContent = mode === 'shelf' ? '写下来就会记住' : '写完后选一种保存方式';
+      status.textContent = mode === 'visit' ? '参观中，只能看' : (mode === 'shelf' ? '写下来就会记住' : '写完后选一种保存方式');
       paintMode();
       paintPublic();
       refreshMeta();
@@ -387,7 +398,7 @@ export function createEditor(root, hooks) {
       }, 30);
     },
     close() {
-      if (note) pull();
+      if (note && mode !== 'visit') pull();
       root.classList.add('hidden');
       mode = 'shelf';
       return note;

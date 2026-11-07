@@ -1,3 +1,4 @@
+/** 中英以外的界面翻译包，由 i18n.js 合并。缺键回退英文。 */
 const status = (pack) => pack;
 
 export const extraKeys = {

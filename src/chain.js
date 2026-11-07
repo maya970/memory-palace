@@ -1,3 +1,4 @@
+/** 按账户地址查找最新私人索引。公开展览不进这份目录。 */
 import { t } from './i18n.js';
 import { pieceRef, pieceStore, readStored, recentUploads } from './remote.js';
 

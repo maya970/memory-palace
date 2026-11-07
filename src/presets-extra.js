@@ -1,3 +1,4 @@
+/** 额外官方宫殿变体。 */
 import { add, box, disk, door, kit, palace, room } from './presets-lib.js';
 
 function columns(placed, x0, z0, x1, z1, y0, y1, type, step = 3) {

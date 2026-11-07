@@ -1,3 +1,4 @@
+/** 国家主题官方宫殿几何。 */
 import {
   band, capital, chamber, checker, cornice, finish, grid, portalZ, shaft, study, teaRoom,
 } from './presets-ornament.js';

@@ -1,3 +1,4 @@
+/** 方块图集与物品栏图标。蜡烛等小件单独画，避免颜色渗到桌面。 */
 import * as THREE from 'three';
 import { BLOCKS, EXTRA_BLOCKS, WOOLS } from './blocks.js';
 import { FURNITURE_BLOCKS } from './furniture.js';

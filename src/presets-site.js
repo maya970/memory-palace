@@ -1,3 +1,4 @@
+/** 场地类官方宫殿几何。 */
 import { chamber, checker, study, teaRoom } from './presets-ornament.js';
 
 export function heightOf(x, z, kind) {

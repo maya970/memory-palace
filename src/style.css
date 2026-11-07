@@ -1,3 +1,4 @@
+/* 记忆宫殿笔记：登录门、暂停菜单、书架编辑器、触摸键。visiting 时隐藏会改存档的入口。 */
 :root {
   color-scheme: light;
   --ink: #241910;
@@ -1215,6 +1216,31 @@ body.phone .touch-move {
 body.phone .touch-move button { font-size: 16px; }
 body.phone .touch-act { grid-template-columns: 62px 62px; gap: 8px; }
 body.phone .touch-act button { width: 62px; height: 62px; font-size: 15px; }
+body.visiting #pause-storage,
+body.visiting #pause-bag,
+body.visiting #pause-community,
+body.visiting #pause-write,
+body.visiting #pause-logout,
+body.visiting #top-upload,
+body.visiting #account-banner,
+body.visiting #leave,
+body.visiting #hotbar-wrap {
+  display: none !important;
+}
+body:not(.visiting) #pause-leave-visit { display: none; }
+.share-field {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+}
+.share-field input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
 body.handheld #hud { pointer-events: none; }
 body.handheld #hotbar,
 body.handheld #touch-pad button { pointer-events: auto; }

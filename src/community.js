@@ -1,3 +1,4 @@
+/** 社区模组安装、检索与投放。不改别人的只读展览。 */
 import { BLOCKS, TEMPLATES } from './blocks.js';
 import { FURNITURE_BLOCKS, setFurnitureShape } from './furniture.js';
 import { PALACE_PRESETS } from './presets.js';

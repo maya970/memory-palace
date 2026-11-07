@@ -1,3 +1,4 @@
+/** Vite：登录与目录双入口；arbundles 的 Node 模块改走浏览器垫片；/api/storage 读链。 */
 import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 import storage from './api/storage.js';

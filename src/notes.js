@@ -1,3 +1,4 @@
+/** 笔记结构、书架坐标、HTML 消毒。noteId 全局唯一，删除只进回收而不复用。 */
 const ALLOW = new Set([
   'P', 'BR', 'B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'DEL',
   'H1', 'H2', 'H3', 'UL', 'OL', 'LI', 'TABLE', 'THEAD', 'TBODY', 'TR',

@@ -1,3 +1,7 @@
+/**
+ * 进入宫殿后的 3D 主循环：移动、放置、书架笔记、天气与暂停菜单。
+ * 登录页不加载本文件。?see= 展览只读，不写本地存档、不能改方块。
+ */
 import * as THREE from 'three';
 import { CSS2DObject, CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { BLOCKS, isNoteHost } from './blocks.js';
@@ -21,9 +25,9 @@ import {
 import { starterNotes as buildStarterNotes } from './palace.js';
 import { createEditor } from './editor.js';
 import { createBackup } from './backup-ui.js';
-import { publishPublicNote } from './remote.js';
+import { publishExhibit, publishPublicNote } from './remote.js';
 import { createDocs } from './docs.js';
-import { bundleToSave } from './bundle.js';
+import { buildBundle, bundleToSave } from './bundle.js';
 import { accountNeedsExport, clearWallets, loadWallets } from './wallets.js';
 import { t } from './i18n.js';
 import { createCommunity } from './community-ui.js';
@@ -52,6 +56,7 @@ const pauseEl = document.querySelector('#pause');
 const helpEl = document.querySelector('#help');
 const docsEl = document.querySelector('#docs');
 const leaveEl = document.querySelector('#leave');
+const shareEl = document.querySelector('#share');
 const communityEl = document.querySelector('#community');
 const graphicsEl = document.querySelector('#graphics');
 let gfx = loadGraphics();
@@ -162,6 +167,8 @@ let rightCool = 0;
 let shelfOpenedThisHold = false;
 let saveTimer = 0;
 let allowSave = true;
+let visitMode = false;
+let exhibitSave = null;
 
 const outline = new THREE.LineSegments(
   new THREE.EdgesGeometry(new THREE.BoxGeometry(1.01, 1.01, 1.01)),
@@ -315,6 +322,13 @@ document.querySelectorAll('#graphics [data-weather]').forEach((button) => {
   });
 });
 document.querySelector('#pause-write').addEventListener('click', openWriteFirst);
+document.querySelector('#pause-share').addEventListener('click', openShare);
+document.querySelector('#share-close').addEventListener('click', closeShare);
+document.querySelector('#share-make').addEventListener('click', makeShareLink);
+document.querySelector('#share-copy').addEventListener('click', copyShareLink);
+document.querySelector('#pause-leave-visit').addEventListener('click', () => {
+  location.href = `${location.origin}${location.pathname}`;
+});
 document.querySelector('#pause-logout').addEventListener('click', logout);
 document.querySelector('#pause-help').addEventListener('click', openHelp);
 document.querySelector('#help-close').addEventListener('click', () => {
@@ -444,6 +458,10 @@ window.addEventListener('keydown', (event) => {
       dismissLeave();
       return;
     }
+    if (shareEl && !shareEl.classList.contains('hidden')) {
+      closeShare();
+      return;
+    }
     if (editor.isOpen()) {
       event.preventDefault();
       closeEditor();
@@ -462,7 +480,7 @@ window.addEventListener('keydown', (event) => {
     }
     return;
   }
-  if (event.code === 'KeyE' && !event.repeat && started && !editor.isOpen() && !backup.isOpen() && !docs.isOpen() && leaveEl.classList.contains('hidden') && helpEl.classList.contains('hidden') && introEl.classList.contains('hidden')) {
+  if (event.code === 'KeyE' && !event.repeat && started && !visitMode && !editor.isOpen() && !backup.isOpen() && !docs.isOpen() && leaveEl.classList.contains('hidden') && helpEl.classList.contains('hidden') && introEl.classList.contains('hidden')) {
     event.preventDefault();
     if (inventory.isOpen()) closeBag();
     else openBag();
@@ -619,6 +637,14 @@ function updateAim(locked) {
   promptEl.textContent = openShelfInstead
     ? (handheld ? `开　打开${BLOCKS[host].name}` : `F 或右键　打开${BLOCKS[host].name}`)
     : (handheld ? `${BLOCKS[shown].name}　拆　放` : `${BLOCKS[shown].name}　左键拆除　右键放置`);
+  if (visitMode) {
+    promptEl.textContent = openShelfInstead
+      ? t('visitOpenShelf', { name: BLOCKS[host].name })
+      : t('visitLook');
+    ghost.visible = false;
+    if (openShelfInstead) return;
+    return;
+  }
   if (isNoteHost(host) && input.sneak) promptEl.textContent = handheld ? '潜行中　放会贴在表面上' : '潜行中　右键会把方块贴在表面上';
   if (openShelfInstead) {
     ghost.visible = false;
@@ -641,6 +667,10 @@ function updateAim(locked) {
 }
 
 function breakAimed() {
+  if (visitMode) {
+    toast(t('visitLocked'));
+    return;
+  }
   if (!aimed || !BLOCKS[aimed.type]?.breakable) return;
   const { x, y, z } = aimed;
   const cover = world.getCover(x, y, z);
@@ -688,6 +718,10 @@ function breakAimed() {
 function useAimed() {
   if (!aimed) return;
   const host = world.hostType(aimed.x, aimed.y, aimed.z);
+  if (visitMode && !(isNoteHost(host) && !input.sneak)) {
+    toast(t('visitLocked'));
+    return;
+  }
   if (isNoteHost(host) && !input.sneak) {
     if (!shelfOpenedThisHold) {
       shelfOpenedThisHold = true;
@@ -742,17 +776,26 @@ function openShelf(x, y, z) {
   const key = shelfKey(x, y, z);
   let note = notes.find((item) => item.shelf === key);
   if (!note) {
+    if (visitMode) {
+      toast(t('visitEmptyShelf'));
+      return;
+    }
     note = createNote(key);
     notes.push(note);
   }
   sfx.open();
   unlockForUi();
   pauseEl.classList.add('hidden');
-  editor.open(note, `${regionName(x, z)} · ${x}, ${y}, ${z}`);
+  editor.open(note, `${regionName(x, z)} · ${x}, ${y}, ${z}`, visitMode ? 'visit' : 'shelf');
 }
 
 function closeEditor() {
   if (!editor.isOpen()) return;
+  if (visitMode) {
+    editor.close();
+    if (started) lock();
+    return;
+  }
   const mode = editor.mode();
   const note = editor.close();
   dropOnClose = false;
@@ -896,6 +939,7 @@ function updateHud() {
   coordsEl.textContent = `x ${subject.x.toFixed(1)}   y ${subject.y.toFixed(1)}   z ${subject.z.toFixed(1)}`;
 }
 
+/** 本机快照。参观模式 persist 会直接返回，避免覆盖访客自己的宫殿。 */
 function snapshot() {
   const diff = world.toDiff();
   const carried = inventory.toJSON();
@@ -919,7 +963,7 @@ function saveSoon() {
 }
 
 function persist() {
-  if (!allowSave || !worldReady) return;
+  if (!allowSave || visitMode || !worldReady) return;
   try {
     writeSave(snapshot());
   } catch {
@@ -997,7 +1041,7 @@ async function ensureWorld(progressRoot) {
     inventory.refresh();
     paint(0.14);
     await new Promise((resolve) => requestAnimationFrame(resolve));
-    world.init(save);
+    world.init(exhibitSave || save);
     beginGraphics();
     gfx = loadGraphics();
     paint(0.22);
@@ -1016,7 +1060,7 @@ async function ensureWorld(progressRoot) {
       const pos = parseShelf(note.shelf);
       if (!pos || !isNoteHost(world.hostType(pos.x, pos.y, pos.z))) note.shelf = null;
     }
-    settleCarriedNotes();
+    if (!visitMode) settleCarriedNotes();
     lastIndoor = null;
     applyMood(world.isRoofed(player.x, player.y, player.z));
     worldReady = true;
@@ -1042,7 +1086,7 @@ function lock() {
 }
 
 function surfaceBlocked() {
-  return editor.isOpen() || inventory.isOpen() || backup.isOpen() || docs.isOpen() || community.isOpen() || !helpEl.classList.contains('hidden') || !startEl.classList.contains('hidden') || !introEl.classList.contains('hidden') || !graphicsEl.classList.contains('hidden');
+  return editor.isOpen() || inventory.isOpen() || backup.isOpen() || docs.isOpen() || community.isOpen() || !helpEl.classList.contains('hidden') || !startEl.classList.contains('hidden') || !introEl.classList.contains('hidden') || !graphicsEl.classList.contains('hidden') || (shareEl && !shareEl.classList.contains('hidden'));
 }
 
 function overlayOpen() {
@@ -1074,10 +1118,11 @@ function syncPause() {
   }
   document.body.classList.toggle('locked', locked);
   const free = started && !locked && !handheld && !surfaceBlocked();
-  const ask = free && !leaveSettled && !appUnlock;
+  const ask = !visitMode && free && !leaveSettled && !appUnlock;
   if (ask) ignoreEscUntil = performance.now() + 500;
   leaveEl.classList.toggle('hidden', !ask);
-  if (!handheld) pauseEl.classList.toggle('hidden', !(free && !ask));
+  if (shareEl && !shareEl.classList.contains('hidden') && locked) shareEl.classList.add('hidden');
+  if (!handheld) pauseEl.classList.toggle('hidden', !(free && !ask && shareEl?.classList.contains('hidden')));
   document.querySelector('#crosshair').classList.toggle('hidden', handheld || !locked);
   document.querySelector('#touch-pad').classList.toggle('hidden', !(handheld && inPlay()));
   syncAccountBanner();
@@ -1091,6 +1136,10 @@ function openHelp() {
 }
 
 function openBag() {
+  if (visitMode) {
+    toast(t('visitLocked'));
+    return;
+  }
   if (!started || editor.isOpen() || backup.isOpen() || docs.isOpen() || !helpEl.classList.contains('hidden') || !introEl.classList.contains('hidden')) return;
   inventory.open();
   unlockForUi();
@@ -1130,6 +1179,7 @@ function openBackup() {
   backup.open();
 }
 
+/** 室内外共用同一天空；简单画质不走日夜。 */
 function applyMood(indoor) {
   lamp.intensity = started && gfx.light !== 'simple' && indoor ? 0.55 : 0;
   if (!started || gfx.light === 'simple') {
@@ -1336,4 +1386,117 @@ async function startFromIntro() {
   syncPause();
 }
 
-export { openWriteFirst, startFromIntro };
+function shareStatus(label, ratio) {
+  const status = shareEl?.querySelector('[data-status]');
+  const meter = shareEl?.querySelector('.meter');
+  const fill = shareEl?.querySelector('.meter-fill');
+  if (status) status.textContent = label || '';
+  if (!meter || !fill) return;
+  if (!label) {
+    meter.hidden = true;
+    fill.classList.remove('indeterminate');
+    return;
+  }
+  meter.hidden = false;
+  if (ratio == null) fill.classList.add('indeterminate');
+  else {
+    fill.classList.remove('indeterminate');
+    fill.style.width = `${Math.max(8, Math.round(ratio * 100))}%`;
+  }
+}
+
+async function copyText(text) {
+  if (!text) return false;
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const field = shareEl?.querySelector('#share-page');
+    if (!field) return false;
+    field.value = text;
+    field.select();
+    return document.execCommand('copy');
+  }
+}
+
+function fillShareFields(url, arweave) {
+  const page = shareEl?.querySelector('#share-page');
+  const ar = shareEl?.querySelector('#share-ar');
+  if (page) page.value = url || '';
+  if (ar) ar.value = arweave || '';
+}
+
+function openShare() {
+  if (!started) return;
+  pauseEl.classList.add('hidden');
+  shareEl.classList.remove('hidden');
+  unlockForUi();
+  const make = shareEl.querySelector('#share-make');
+  if (visitMode) {
+    make.hidden = true;
+    fillShareFields(location.href, '');
+    shareStatus(t('shareVisitHint'));
+    shareEl.querySelector('.meter').hidden = true;
+    return;
+  }
+  make.hidden = false;
+  if (!shareEl.querySelector('#share-page').value) shareStatus(t('shareHint'));
+}
+
+function closeShare() {
+  shareEl.classList.add('hidden');
+  shareStatus('');
+  if (started) lock();
+  syncPause();
+}
+
+async function makeShareLink() {
+  if (visitMode) return;
+  const make = shareEl.querySelector('#share-make');
+  if (make.disabled) return;
+  make.disabled = true;
+  persist();
+  shareStatus(t('shareBusy'));
+  try {
+    const published = await publishExhibit(buildBundle(snapshot()), (label) => shareStatus(label));
+    fillShareFields(published.url, published.arweave);
+    const copied = await copyText(published.url);
+    shareStatus(copied ? t('shareCopied') : t('shareReady'));
+    shareEl.querySelector('.meter').hidden = true;
+  } catch (error) {
+    shareStatus(error?.message || t('shareFailed'));
+  } finally {
+    make.disabled = false;
+  }
+}
+
+async function copyShareLink() {
+  const url = shareEl.querySelector('#share-page').value.trim();
+  if (!url) {
+    shareStatus(t('shareHint'));
+    return;
+  }
+  const copied = await copyText(url);
+  shareStatus(copied ? t('shareCopied') : t('shareReady'));
+}
+
+async function startVisit(bundle) {
+  visitMode = true;
+  allowSave = false;
+  document.body.classList.add('visiting');
+  exhibitSave = bundleToSave(bundle);
+  notes = (exhibitSave.notes || []).map(normalizeNote);
+  inventory.load({ slot: 5, hotbar: [], backpack: [] });
+  if (exhibitSave.player && !stuck(exhibitSave.player)) player.place(exhibitSave.player);
+  startEl.classList.remove('hidden');
+  introEl.classList.add('hidden');
+  await ensureWorld(startEl);
+  startEl.classList.add('hidden');
+  hud.classList.remove('hidden');
+  started = true;
+  toast(t('visitHint'), 8000);
+  lock();
+  syncPause();
+}
+
+export { openWriteFirst, startFromIntro, startVisit };

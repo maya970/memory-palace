@@ -1,3 +1,4 @@
+/** 立面构件：门廊、柱廊、线脚。 */
 import { band, capital, cornice, portalZ, shaft } from './presets-ornament.js';
 
 function topY(g, x, z) {

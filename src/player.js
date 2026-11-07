@@ -1,3 +1,6 @@
+/**
+ * 第一人称移动与碰撞。台阶只抬半格（STEP_UP），完整方块不能垂直走上去。
+ */
 const RADIUS = 0.3;
 const HEIGHT = 1.8;
 const WALK = 4.6;

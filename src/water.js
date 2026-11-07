@@ -1,3 +1,4 @@
+/** 水体：简单模式是方块色；电影级用平面网格和湿润反射。 */
 import * as THREE from 'three';
 import { BUILD_MAX, BUILD_MIN, Y_MIN, Y_MAX } from './palace.js';
 

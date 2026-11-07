@@ -1,3 +1,6 @@
+/**
+ * 画质开关：简单 Lambert；电影级才挂 IBL、阴影和水材质。登录后 beginGraphics 才生效。
+ */
 import * as THREE from 'three';
 import { loadGraphics } from './graphics-settings.js';
 

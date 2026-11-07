@@ -1,3 +1,4 @@
+/** 官方宫殿数据包：各国/各地轮廓，无版权地图。 */
 import {
   chinaFace, egyptFace, englandFace, gothicFace, indiaFace, italyFace, japanFace, russiaFace, spainFace, turkeyFace,
 } from './presets-facade.js';

@@ -1,3 +1,6 @@
+/**
+ * 体素世界：放置/拆除、屋顶判定、网格重建。室内外共用同一套天空。
+ */
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { BLOCKS } from './blocks.js';

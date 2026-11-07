@@ -1,3 +1,4 @@
+/** arbundles 在浏览器里用的 Node crypto 垫片。 */
 import { sha256, sha384, sha512 } from '@noble/hashes/sha2.js';
 
 const algos = { sha256, sha384, sha512 };

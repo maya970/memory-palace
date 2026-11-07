@@ -1,3 +1,4 @@
+/** 官方宫殿目录入口，聚合各 presets-* 数据包。 */
 import { worldPalaces } from './presets-worlds.js';
 import { SPAWN } from './palace.js';
 

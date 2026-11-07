@@ -1,3 +1,4 @@
+/** 室内摆设与房间模板，给官方宫殿拼装用。 */
 import { palace } from './presets-lib.js';
 
 export function grid() {

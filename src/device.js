@@ -1,3 +1,4 @@
+/** 判断手机/平板/桌面，给登录页和触摸键用。不在登录前加载 3D。 */
 export function deviceKind() {
   const coarse = window.matchMedia('(pointer: coarse)').matches;
   const touch = navigator.maxTouchPoints > 0;

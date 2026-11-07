@@ -1,3 +1,7 @@
+/**
+ * 登录入口：不预加载 Three。点走进去 / 先写一篇 才 import play。
+ * 地址栏 ?see=Arweave编号 时跳过账户，只读走进别人分享的宫殿。
+ */
 import { bundleToSave } from './bundle.js';
 import { markDevice } from './device.js';
 import { createGate } from './gate.js';
@@ -79,8 +83,10 @@ document.querySelectorAll('.gate-gfx [data-light]').forEach((button) => {
   });
 });
 
+const seeId = new URLSearchParams(location.search).get('see') || new URLSearchParams(location.search).get('view');
+
 createGate(startEl, {
-  autoEnter: sessionStorage.getItem('memory-palace-enter') === '1',
+  autoEnter: !seeId && sessionStorage.getItem('memory-palace-enter') === '1',
   onRestore: restoreAndEnter,
   onAccount() {
     hideMeter(startEl);
@@ -132,3 +138,46 @@ document.querySelector('#account-export').addEventListener('click', () => {
 });
 
 hideMeter(startEl);
+
+if (seeId) {
+  (async () => {
+    startEl.querySelectorAll('button').forEach((button) => {
+      if (!button.dataset.light) button.disabled = true;
+    });
+    paintMeter(startEl, null, t('visitLoading'));
+    try {
+      const remote = await import('./remote.js');
+      const data = await remote.readStored('arweave', seeId);
+      let bundle;
+      if (remote.isPublicNote(data)) {
+        let world = data.palace || { removed: [], placed: [] };
+        if (Array.isArray(world)) {
+          const { joinWorld } = await import('./bundle.js');
+          const chunks = [];
+          for (const piece of world) {
+            chunks.push(await remote.readStored(remote.pieceStore(piece, 'arweave'), remote.pieceRef(piece)));
+          }
+          world = joinWorld(chunks);
+        }
+        bundle = {
+          kind: 'memory-palace-exhibit',
+          public: true,
+          notes: [data],
+          world,
+          player: data.spawn || null,
+        };
+      } else {
+        bundle = await remote.resolveBundle(data, ({ ratio, label }) => paintMeter(startEl, ratio, label));
+      }
+      const play = await loadPlay(startEl);
+      await play.startVisit(bundle);
+      hideMeter(startEl);
+    } catch (error) {
+      console.error(error);
+      startEl.querySelectorAll('button').forEach((button) => {
+        if (!button.dataset.light) button.disabled = false;
+      });
+      paintMeter(startEl, 0, error?.message || t('visitFailed'));
+    }
+  })();
+}

@@ -1,3 +1,4 @@
+/** 拼装官方宫殿的小工具：盒子、门洞、房间。 */
 export const SOUTH = { x: 0.5, y: 1, z: 4.5, yaw: Math.PI, pitch: -0.08 };
 
 export function add(placed, x, y, z, type) {

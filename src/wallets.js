@@ -1,3 +1,4 @@
+/** Arweave JWK 与 Sui 密钥的生成本地保存。丢失无法找回。 */
 import { blake2b } from '@noble/hashes/blake2.js';
 import { sha512 } from '@noble/hashes/sha2.js';
 import * as ed from '@noble/ed25519';

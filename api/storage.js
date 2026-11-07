@@ -1,3 +1,6 @@
+/**
+ * /api/storage 代理：按 tx= 读 Arweave，按 blob= 读 Walrus 主网聚合器。
+ */
 const AR = 'https://turbo-gateway.com/raw/';
 const WALRUS = 'https://aggregator.walrus-mainnet.walrus.space/v1/blobs/';
 

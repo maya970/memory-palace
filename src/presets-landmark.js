@@ -1,3 +1,4 @@
+/** 地标类官方宫殿几何。 */
 import { disk } from './presets-lib.js';
 import {
   band, capital, chamber, checker, cornice, finish, grid, lancetX, lancetZ, portalZ, shaft, study, teaRoom,

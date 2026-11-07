@@ -1,3 +1,4 @@
+/** 本机 localStorage 存档。参观模式不要调用 writeSave。 */
 const KEY = 'memory-palace-v1';
 
 export function loadSave() {

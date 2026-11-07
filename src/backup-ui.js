@@ -1,3 +1,4 @@
+/** Esc 后的私人上传：按路由把备份写到 Arweave 或 Walrus，并记入 recentUploads。 */
 import { buildBundle } from './bundle.js';
 import { clearSessionMods, installedUserMods, pendingSessionMods } from './community.js';
 import { t } from './i18n.js';

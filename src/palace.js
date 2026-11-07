@@ -1,3 +1,4 @@
+/** 初始岛尺寸、出生点、起步笔记。世界边界在 BUILD_MIN/MAX。 */
 import { createNote } from './notes.js';
 
 export const ISLAND_MIN = -48;

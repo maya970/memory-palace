@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- 入口：boot.js 管登录；play.js 管 3D。?see= 为只读参观。Esc 可分享整座宫殿。 -->
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
@@ -95,6 +96,8 @@
       <p class="apple-kicker" data-i18n="brand">记忆宫殿笔记</p>
       <label class="lang-pick"><span data-i18n="language">语言</span><select data-lang data-i18n-aria="language" aria-label="语言"></select></label>
       <button id="resume" type="button"><span data-i18n="resume">继续</span></button>
+      <button id="pause-share" type="button"><span data-i18n="sharePalace">分享这座宫殿</span></button>
+      <button id="pause-leave-visit" type="button"><span data-i18n="leaveVisit">离开参观</span></button>
       <button id="pause-storage" type="button"><span data-i18n="storage">个人存储信息</span><kbd>B</kbd></button>
       <button id="pause-docs" type="button"><span data-i18n="docs">全部文档</span><kbd>L</kbd></button>
       <button id="pause-bag" type="button"><span data-i18n="bag">背包</span><kbd>E</kbd></button>
@@ -104,6 +107,22 @@
       <button id="pause-help" type="button"><span data-i18n="help">帮助</span><kbd>H</kbd></button>
       <button id="pause-logout" type="button"><span data-i18n="logout">退出登录</span></button>
     </nav>
+  </div>
+
+  <div id="share" class="overlay apple-shade hidden">
+    <section class="apple-sheet">
+      <header class="apple-head">
+        <h2 data-i18n="sharePalace">分享这座宫殿</h2>
+        <button id="share-close" type="button" data-i18n="close">关闭</button>
+      </header>
+      <p class="apple-lead" data-i18n="shareLead">把这座宫殿和里面的笔记做成只读链接。别人打开后只能走、只能看，改不了，也不会覆盖他们自己的存档。</p>
+      <button id="share-make" type="button" data-i18n="shareMake">生成只读链接</button>
+      <label class="share-field"><span data-i18n="sharePage">参观链接</span><input id="share-page" type="text" readonly /></label>
+      <label class="share-field"><span data-i18n="shareAr">Arweave</span><input id="share-ar" type="text" readonly /></label>
+      <button id="share-copy" type="button" data-i18n="shareCopy">复制链接</button>
+      <div class="meter" hidden><div class="meter-fill"></div></div>
+      <p class="apple-status" data-status></p>
+    </section>
   </div>
 
   <div id="graphics" class="overlay apple-shade hidden">
@@ -209,7 +228,7 @@
         </section>
         <section>
           <h3>存储</h3>
-          <p>按 Esc 会出现鼠标，并询问要不要上传。B 打开个人存储信息，L 用表格查看全部文稿。点「社区模组」会打开检索页：可按官方 / 玩家、宫殿 / 家具筛选，也能按名称搜索自己导入的包。也可以先写一篇，存储后会丢进有屋顶的房间。打开一篇笔记后可以「公开这篇」，会生成一个 Arweave 链接。</p>
+          <p>Esc 菜单里可以「分享这座宫殿」，把方块和笔记做成只读链接。别人打开后只能走、只能看，改不了，也不会覆盖他们自己的存档。B 打开个人存储信息，L 用表格查看全部文稿。单篇「公开这篇」仍然只分享这一格文稿。</p>
         </section>
       </div>
     </div>

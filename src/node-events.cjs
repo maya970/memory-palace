@@ -1,3 +1,4 @@
+/** arbundles 在浏览器里用的 Node events 垫片。 */
 function EventEmitter() {}
 
 EventEmitter.prototype.on = function on() {

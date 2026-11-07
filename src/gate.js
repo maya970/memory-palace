@@ -1,3 +1,6 @@
+/**
+ * 登录门：创建/导入账户、读链上索引。不加载 3D。
+ */
 import { onLang, t } from './i18n.js';
 import { createWallets, loadWallets, saveWallets, walletAddresses } from './wallets.js';
 

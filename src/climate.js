@@ -1,3 +1,6 @@
+/**
+ * 日光：按本机时钟走太阳方位。简单画质固定一盏灯，不做日夜和阴影。
+ */
 import * as THREE from 'three';
 import { BLOCKS } from './blocks.js';
 import { currentGraphics } from './graphics.js';

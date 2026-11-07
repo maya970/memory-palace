@@ -1,3 +1,6 @@
+/**
+ * 存档与链上包互转。世界超过 100KB 会切块；笔记用 stub+ref 指向正文。
+ */
 import { isEmptyNote, normalizeNote } from './notes.js';
 
 export const FREE_BYTES = 100 * 1024;

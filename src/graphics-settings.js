@@ -1,3 +1,4 @@
+/** 本机画质偏好（水、光、天气）。live 为 false 时只存设置，不驱动渲染。 */
 const KEY = 'memory-palace-graphics';
 let live = false;
 

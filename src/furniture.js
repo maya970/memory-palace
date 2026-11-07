@@ -1,3 +1,6 @@
+/**
+ * 原创家具几何与桌面覆盖物。solid:false 的摆件仍可被射线选中。
+ */
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 

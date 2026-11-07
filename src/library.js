@@ -1,8 +1,12 @@
+/**
+ * 文稿目录页：本机存档、私人备份、公开笔记。
+ * 展览（kind=memory-palace-exhibit）只提供走进参观，不覆盖本地宫殿。
+ */
 import { BLOCKS } from './blocks.js';
 import { buildBundle, bundleToSave, joinWorld } from './bundle.js';
 import { excerpt, isEmptyNote, parseShelf, sanitizeHtml, sortNotes } from './notes.js';
 import { loadSave, writeSave } from './storage.js';
-import { isPublicNote, pieceRef, pieceStore, readStored, recentUploads, resolveBundle } from './remote.js';
+import { isExhibit, isPublicNote, pieceRef, pieceStore, readStored, recentUploads, resolveBundle } from './remote.js';
 
 const statusEl = document.querySelector('#library-status');
 const indexEl = document.querySelector('#library-index');
@@ -116,16 +120,18 @@ recentEl.querySelectorAll('button').forEach((button) => {
 });
 }
 
-async function showBundle(bundle, source) {
+async function showBundle(bundle, source, exhibitId) {
   view = {
     source,
     store: bundle.store || null,
     notes: bundle.notes || [],
     world: bundle.world || { removed: [], placed: [] },
     bundle,
+    exhibitId: exhibitId || null,
   };
   adoptEl.classList.toggle('hidden', source === 'local');
-  status(source === 'local' ? '正在看这台浏览器里的笔记' : '备份已按条列在下面');
+  adoptEl.textContent = source === 'exhibit' ? '走进参观（只看不改）' : '用这份备份覆盖这座宫殿';
+  status(source === 'local' ? '正在看这台浏览器里的笔记' : (source === 'exhibit' ? '这是只读展览，走进去不会改你自己的宫殿' : '备份已按条列在下面'));
   showIndex();
 }
 
@@ -145,7 +151,8 @@ function showPublicNote(note, id, world) {
   };
   document.querySelector('#library-index').classList.add('hidden');
   adoptEl.classList.toggle('hidden', !hasPalace);
-  adoptEl.textContent = hasPalace ? '走进这座宫殿' : '用这份备份覆盖这座宫殿';
+  adoptEl.textContent = hasPalace ? '走进参观（只看不改）' : '用这份备份覆盖这座宫殿';
+  view.exhibitId = id;
   document.querySelector('#note-kicker').textContent = note.cue || '公开笔记';
   document.querySelector('#note-title').textContent = note.title || '未命名';
   document.querySelector('#note-where').textContent = id ? `Arweave · ${id}` : '公开笔记';
@@ -174,6 +181,11 @@ async function openNote(entry) {
 
 async function openRemote(store, id) {
   const manifest = await readStored(store, id);
+  if (isExhibit(manifest)) {
+    const bundle = await resolveBundle(manifest);
+    await showBundle({ ...bundle, store: 'arweave' }, 'exhibit', id);
+    return;
+  }
   if (isPublicNote(manifest)) {
     let palace = manifest.palace || { removed: [], placed: [] };
     if (Array.isArray(palace)) {
@@ -187,7 +199,7 @@ async function openRemote(store, id) {
     status(palace.placed?.length ? '这是一篇公开笔记，下面是这座宫殿' : '这是一篇公开笔记');
     return;
   }
-  if (manifest?.kind !== 'memory-palace') throw new Error('这不是宫殿备份');
+  if (manifest?.kind !== 'memory-palace' && manifest?.kind !== 'memory-palace-exhibit') throw new Error('这不是宫殿备份');
   const fallback = pieceStore(manifest, store);
   const chunks = [];
   for (const piece of (Array.isArray(manifest.world) ? manifest.world : [])) {
@@ -241,6 +253,13 @@ document.querySelector('#library-file').addEventListener('change', async (event)
   }
 });
 adoptEl.addEventListener('click', () => {
+  if (view?.source === 'exhibit' || view?.source === 'public') {
+    const id = view.exhibitId;
+    if (id) {
+      window.location.href = `/?see=${encodeURIComponent(id)}`;
+      return;
+    }
+  }
   if (view?.source === 'public' && view.bundle) {
     writeSave(bundleToSave(view.bundle));
     window.location.href = '/';
@@ -266,7 +285,11 @@ const params = new URLSearchParams(location.search);
 const tx = params.get('tx');
 const blob = params.get('blob');
 const noteId = params.get('note');
-if (noteId) {
+const seeId = params.get('see') || params.get('view');
+if (seeId) {
+  status('正在打开只读展览');
+  openRemote('arweave', seeId).catch((error) => status(error?.message || '这座展览没有打开'));
+} else if (noteId) {
   status('正在打开公开笔记');
   openRemote('arweave', noteId).catch((error) => status(error?.message || '这篇公开笔记没有打开'));
 } else if (tx) openRemote('arweave', tx).catch((error) => status(error?.message || '这个编号没有打开'));

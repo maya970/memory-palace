@@ -1,3 +1,4 @@
+/** 方块表：名称、颜色、是否实心/可放笔记。家具从 furniture.js 并入。 */
 import { FURNITURE_BLOCKS } from './furniture.js';
 
 export const WOOLS = [
