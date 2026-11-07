@@ -2,7 +2,7 @@ import { BLOCKS } from './blocks.js';
 import { buildBundle, bundleToSave, joinWorld } from './bundle.js';
 import { excerpt, isEmptyNote, parseShelf, sanitizeHtml, sortNotes } from './notes.js';
 import { loadSave, writeSave } from './storage.js';
-import { pieceRef, pieceStore, readStored, recentUploads, resolveBundle } from './remote.js';
+import { isPublicNote, pieceRef, pieceStore, readStored, recentUploads, resolveBundle } from './remote.js';
 
 const statusEl = document.querySelector('#library-status');
 const indexEl = document.querySelector('#library-index');
@@ -129,6 +129,17 @@ async function showBundle(bundle, source) {
   showIndex();
 }
 
+function showPublicNote(note, id) {
+  view = { source: 'public', notes: [note], world: { removed: [], placed: [] }, bundle: null };
+  document.querySelector('#library-index').classList.add('hidden');
+  adoptEl.classList.add('hidden');
+  document.querySelector('#note-kicker').textContent = note.cue || '公开笔记';
+  document.querySelector('#note-title').textContent = note.title || '未命名';
+  document.querySelector('#note-where').textContent = id ? `Arweave · ${id}` : '公开笔记';
+  document.querySelector('#note-body').innerHTML = sanitizeHtml(note.html || '<p><br></p>');
+  noteEl.classList.remove('hidden');
+}
+
 async function openNote(entry) {
   status('正在打开这一条');
   try {
@@ -149,6 +160,11 @@ async function openNote(entry) {
 
 async function openRemote(store, id) {
   const manifest = await readStored(store, id);
+  if (isPublicNote(manifest)) {
+    showPublicNote(manifest, id);
+    status('这是一篇公开笔记');
+    return;
+  }
   if (manifest?.kind !== 'memory-palace') throw new Error('这不是宫殿备份');
   const fallback = pieceStore(manifest, store);
   const chunks = [];
@@ -159,6 +175,12 @@ async function openRemote(store, id) {
 }
 
 document.querySelector('#note-back').addEventListener('click', () => {
+  if (view?.source === 'public') {
+    noteEl.classList.add('hidden');
+    indexEl.classList.remove('hidden');
+    status('贴上编号就能打开公开笔记或整座宫殿');
+    return;
+  }
   if (view) showIndex();
 });
 document.querySelector('#use-local').addEventListener('click', () => {
@@ -216,6 +238,10 @@ adoptEl.addEventListener('click', () => {
 const params = new URLSearchParams(location.search);
 const tx = params.get('tx');
 const blob = params.get('blob');
-if (tx) openRemote('arweave', tx).catch((error) => status(error?.message || '这个编号没有打开'));
+const noteId = params.get('note');
+if (noteId) {
+  status('正在打开公开笔记');
+  openRemote('arweave', noteId).catch((error) => status(error?.message || '这篇公开笔记没有打开'));
+} else if (tx) openRemote('arweave', tx).catch((error) => status(error?.message || '这个编号没有打开'));
 else if (blob) openRemote('walrus', blob).catch((error) => status(error?.message || '这个编号没有打开'));
 else document.querySelector('#use-local').click();

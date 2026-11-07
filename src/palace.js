@@ -98,6 +98,26 @@ function tree(set, x, z) {
   }
 }
 
+function study(set, ox, oz) {
+  for (let z = 0; z <= 6; z += 1) {
+    for (let x = 0; x <= 8; x += 1) {
+      set(ox + x, 0, oz + z, 'planks');
+      const wall = x === 0 || x === 8 || z === 0 || z === 6;
+      if (wall && !(x === 4 && z === 6)) {
+        set(ox + x, 1, oz + z, 'planks');
+        set(ox + x, 2, oz + z, x % 3 === 0 ? 'glass' : 'planks');
+        set(ox + x, 3, oz + z, 'planks');
+      }
+      set(ox + x, 4, oz + z, 'spruce_planks');
+    }
+  }
+  set(ox + 2, 1, oz + 2, 'writing_desk');
+  set(ox + 2, 2, oz + 2, 'desk_lamp');
+  set(ox + 6, 1, oz + 2, 'bookshelf');
+  set(ox + 4, 1, oz + 1, 'oak_chair');
+  set(ox + 7, 1, oz + 4, 'wardrobe');
+}
+
 function pad(set, x, z, wool) {
   for (let dz = -1; dz <= 1; dz++) {
     for (let dx = -1; dx <= 1; dx++) set(x + dx, 0, z + dz, wool);
@@ -143,6 +163,7 @@ export function buildBase(set) {
   tree(set, 22, -22);
   tree(set, -22, 22);
   tree(set, -22, -22);
+  study(set, 18, -30);
 
   for (const station of STATIONS) {
     if (station.wool) pad(set, station.x, station.z, station.wool);

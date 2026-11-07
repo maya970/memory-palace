@@ -43,6 +43,8 @@
         <button id="gate-wallet-pick" type="button"><span data-i18n="importAccount">导入账户</span><small data-i18n="importHint">恢复链上最新索引、方块方位和每一篇笔记</small></button>
         <button id="gate-local" type="button" disabled><span data-i18n="localNotes">本地笔记</span><small data-i18n="localPreparing">正在准备这座宫殿</small></button>
         <button id="gate-file-pick" type="button"><span data-i18n="importFile">导入文件</span><small data-i18n="importFileHint">一份文件，方块方位和笔记在一起</small></button>
+        <button id="gate-community" type="button"><span>社区模组</span><small>官方家居、现成宫殿，也可以导入别人分享的包</small></button>
+        <button id="gate-write" type="button"><span>先写一篇</span><small>不进宫殿也能写，存储后会丢进有屋顶的房间</small></button>
       </div>
       <input id="gate-wallet-file" type="file" accept="application/json,.json" hidden />
       <input id="gate-palace-file" type="file" accept="application/json,.json" hidden />
@@ -68,8 +70,37 @@
       <button id="pause-storage" type="button"><span data-i18n="storage">个人存储信息</span><kbd>B</kbd></button>
       <button id="pause-docs" type="button"><span data-i18n="docs">全部文档</span><kbd>L</kbd></button>
       <button id="pause-bag" type="button"><span data-i18n="bag">背包</span><kbd>E</kbd></button>
+      <button id="pause-community" type="button"><span>社区模组</span></button>
+      <button id="pause-write" type="button"><span>先写一篇</span></button>
       <button id="pause-help" type="button"><span data-i18n="help">帮助</span><kbd>H</kbd></button>
     </nav>
+  </div>
+
+  <div id="community" class="overlay apple-shade hidden">
+    <section class="apple-sheet wide">
+      <header class="apple-head">
+        <h2>社区模组</h2>
+        <button id="community-close" type="button">关闭</button>
+      </header>
+      <p class="apple-lead">建筑和家具都是独立的一份 JSON，可以分开导入、分开导出。把细则交给 AI，或自己在岛上搭好再导出。导入后会出现在下面的列表里，宫殿要再点「进入这座宫殿」才会铺进世界。</p>
+      <div class="segment">
+        <button type="button" data-tab="palace" class="on">现成宫殿</button>
+        <button type="button" data-tab="furniture">家具包</button>
+      </div>
+      <div class="apple-list community-toolbar">
+        <button id="community-write" type="button">先写一篇</button>
+        <button id="community-import" type="button">导入模组</button>
+        <button id="community-spec" type="button">给 AI 的细则</button>
+        <button id="community-export-palace" type="button">导出这座宫殿</button>
+        <button id="community-export-furniture" type="button">导出官方家居</button>
+        <button id="community-export-my-furniture" type="button">导出我的家具</button>
+      </div>
+      <input id="community-file" type="file" accept="application/json,.json" hidden />
+      <div id="community-list"></div>
+      <h3 class="community-sub">投放记录</h3>
+      <p class="apple-lead">先写再存储的笔记，只会落在头顶有方块的房间里。点一条可以去那里整理。</p>
+      <div id="drop-list"></div>
+    </section>
   </div>
 
   <div id="help" class="overlay hidden">
@@ -85,9 +116,9 @@
           <p>按 E 打开背包。右边是标准方块，拖进下方物品栏，或点一下放进当前选中的格子。拆掉的方块会叠进背包。不想要的，拖到「永久销毁」。数字键 1–9 和滚轮选择手里的那一格。</p>
         </section>
         <section>
-          <h3>书架</h3>
-          <p>对准书架，按 F 或右键打开笔记。按住 Shift 再右键，才会把手里的方块放在书架表面上。</p>
-          <p>拆掉写过字的书架，整格连笔记一起进背包。放到新的地方，打开还是原来那本。拖进永久销毁，笔记也一起没了。笔记开着时，也可以按「收进背包」。</p>
+          <h3>位点</h3>
+          <p>对准书架、书桌、床、衣柜，或桌上摊开的笔记，按 F 或右键打开。按住 Shift 再右键，才会把手里的东西放在表面上。</p>
+          <p>桌布铺在桌子顶上，床单被子枕头铺在床上，笔、信、茶杯这类小物放在桌面或柜子顶上。外套裙子挂到墙面或衣柜旁边。拆掉写过字的那一格，笔记会一起进背包。</p>
         </section>
         <section>
           <h3>这本笔记</h3>
@@ -96,7 +127,7 @@
         </section>
         <section>
           <h3>存储</h3>
-          <p>按 Esc 会出现鼠标，并询问要不要上传。B 打开个人存储信息，L 用表格查看全部文稿。给书架编上顺序，回想时按这个顺序再走一遍。</p>
+          <p>按 Esc 会出现鼠标，并询问要不要上传。B 打开个人存储信息，L 用表格查看全部文稿。登录页和 Esc 里有社区模组：官方家居、现成宫殿、导入导出。也可以先写一篇，存储后会丢进有屋顶的房间，投放记录能找到它。打开一篇笔记后可以「公开这篇」，会生成一个 Arweave 链接。</p>
         </section>
       </div>
     </div>
@@ -200,7 +231,7 @@
           <h2>背包</h2>
           <button id="inv-close" type="button">关闭</button>
         </div>
-        <p class="inv-hint">右边的方块拖进物品栏再拿去放。拆掉的方块会叠进背包，写过字的书架会标着「记」。不想要的拖进永久销毁，那里清掉就找不回来了。</p>
+        <p class="inv-hint">右边的方块和家具拖进物品栏再拿去放。拆掉写过字的格子会标着「记」。不想要的拖进永久销毁，那里清掉就找不回来了。</p>
         <div id="backpack" class="inv-grid"></div>
         <button id="trash-slot" class="trash-slot" type="button" data-area="trash">永久销毁</button>
         <p class="inv-label">物品栏</p>
@@ -219,7 +250,7 @@
     <div class="book">
       <header class="book-top">
         <div>
-          <p class="eyebrow">书架上的笔记</p>
+          <p class="eyebrow">这一格的笔记</p>
           <p id="book-loc"></p>
         </div>
         <button id="book-close" type="button">关闭</button>
@@ -287,8 +318,19 @@
       <footer class="book-foot">
         <span id="book-status">写下来就会记住</span>
         <span id="book-meta"></span>
+        <button id="note-public" type="button">公开这篇</button>
         <button id="note-detach" class="textish" type="button">收进背包</button>
       </footer>
+      <div id="public-box" class="public-box hidden">
+        <p>公开后任何人都能打开。Arweave 上不能撤回。改过正文要再公开一次，会得到新链接。</p>
+        <label>阅读页
+          <input id="public-page" type="text" readonly />
+        </label>
+        <label>Arweave
+          <input id="public-ar" type="text" readonly />
+        </label>
+        <button id="public-copy" type="button">复制阅读页</button>
+      </div>
     </div>
   </div>
 

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { BLOCKS } from './blocks.js';
+import { furnitureGeometry } from './furniture.js';
 import { texturesFor } from './textures.js';
 import { buildBase } from './palace.js';
 
@@ -134,7 +135,7 @@ export class World {
     let group = this.groups.get(type);
     if (group) return group;
     const tex = texturesFor(type);
-    const transparent = Boolean(BLOCKS[type]?.transparent || tex.transparent);
+    const transparent = Boolean(BLOCKS[type]?.transparent || tex.transparent || BLOCKS[type]?.solid === false);
     const meshes = [];
     const add = (geo, map) => {
       const mesh = new THREE.InstancedMesh(geo, lambert(map, transparent), MAX);
@@ -143,7 +144,9 @@ export class World {
       this.scene.add(mesh);
       meshes.push(mesh);
     };
-    if (tex.uniform) add(this.boxGeo, tex.side);
+    const shaped = furnitureGeometry(type);
+    if (shaped) add(shaped, tex.side);
+    else if (tex.uniform) add(this.boxGeo, tex.side);
     else {
       add(this.wallGeo, tex.side);
       add(this.topGeo, tex.top);
@@ -160,7 +163,7 @@ export class World {
     const index = group.keys.length;
     group.keys.push(key);
     this.index.set(key, { type, index });
-    if (type === 'bookshelf') this.shelves.add(key);
+    if (BLOCKS[type]?.noteHost) this.shelves.add(key);
     this.write(group, index, x, y, z, batched);
     return true;
   }
@@ -182,7 +185,9 @@ export class World {
   }
 
   isSolid(x, y, z) {
-    return this.blocks.has(keyOf(x, y, z));
+    const type = this.blocks.get(keyOf(x, y, z));
+    if (!type) return false;
+    return BLOCKS[type]?.solid !== false;
   }
 
   setBlock(x, y, z, type) {

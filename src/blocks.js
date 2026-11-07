@@ -1,3 +1,5 @@
+import { FURNITURE_BLOCKS } from './furniture.js';
+
 export const WOOLS = [
   { id: 'wool_white', name: '白色羊毛', color: '#f3f3f3' },
   { id: 'wool_light_gray', name: '淡灰色羊毛', color: '#bdbdbd' },
@@ -57,7 +59,7 @@ export const BLOCKS = {
   stone: { id: 'stone', name: '石头', color: '#8d8d8d', breakable: true, group: '建筑' },
   planks: { id: 'planks', name: '橡木木板', color: '#b5884a', breakable: true, group: '木头' },
   log: { id: 'log', name: '橡木原木', color: '#6b4a2b', breakable: true, group: '木头' },
-  bookshelf: { id: 'bookshelf', name: '书架', color: '#8c5a32', breakable: true, shelf: true, group: '建筑' },
+  bookshelf: { id: 'bookshelf', name: '书架', color: '#8c5a32', breakable: true, shelf: true, noteHost: true, group: '建筑' },
   bricks: { id: 'bricks', name: '砖块', color: '#a85b48', breakable: true, group: '建筑' },
   glass: { id: 'glass', name: '玻璃', color: '#b9e3f2', breakable: true, transparent: true, group: '建筑' },
   bedrock: { id: 'bedrock', name: '基岩', color: '#3a3a3a', breakable: false },
@@ -65,6 +67,10 @@ export const BLOCKS = {
 
 for (const block of EXTRA_BLOCKS) {
   BLOCKS[block.id] = { breakable: true, ...block };
+}
+
+for (const piece of FURNITURE_BLOCKS) {
+  BLOCKS[piece.id] = { breakable: true, ...piece };
 }
 
 for (const wool of WOOLS) {
@@ -87,7 +93,12 @@ export const TEMPLATES = [
   'dark_oak_planks', 'cherry_planks',
   'iron', 'gold', 'diamond', 'emerald', 'copper', 'lapis', 'redstone', 'coal',
   ...WOOLS.map((wool) => wool.id),
+  ...FURNITURE_BLOCKS.map((piece) => piece.id),
 ];
+
+export function isNoteHost(type) {
+  return Boolean(BLOCKS[type]?.noteHost);
+}
 
 export const DEFAULT_HOTBAR = [
   'grass', 'dirt', 'stone', 'planks', 'log', 'bookshelf', 'bricks', 'glass', 'wool_white',

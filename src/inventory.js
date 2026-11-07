@@ -17,7 +17,7 @@ export function stackOf(slot) {
   }
   const type = cleanType(slot.type);
   if (!type) return null;
-  const noteId = type === 'bookshelf' && typeof slot.noteId === 'string' && slot.noteId ? slot.noteId : null;
+  const noteId = BLOCKS[type]?.noteHost && typeof slot.noteId === 'string' && slot.noteId ? slot.noteId : null;
   if (noteId) return { type, count: 1, noteId };
   if (slot.count == null) return { type, count: null };
   const count = Math.max(1, Math.min(STACK_MAX, Math.floor(Number(slot.count)) || 1));
@@ -182,7 +182,7 @@ function escapeHtml(value) {
 
 function slotName(stack, hooks) {
   if (!stack) return '空';
-  if (stack.noteId) return `书架《${hooks.noteName?.(stack.noteId) || '笔记'}》`;
+  if (stack.noteId) return `${BLOCKS[stack.type].name}《${hooks.noteName?.(stack.noteId) || '笔记'}》`;
   return BLOCKS[stack.type].name;
 }
 
@@ -226,7 +226,7 @@ export function createInventory(root, hooks) {
   }
 
   function renderTemplates() {
-    const order = ['建筑', '木头', '矿物', '羊毛'];
+    const order = ['建筑', '木头', '矿物', '羊毛', '家具', '布艺', '小物', '衣橱'];
     const grouped = new Map(order.map((name) => [name, []]));
     for (const type of TEMPLATES) {
       const name = BLOCKS[type].group || '建筑';
@@ -410,6 +410,10 @@ export function createInventory(root, hooks) {
       };
       hotbar = hotbar.map(strip);
       backpack = backpack.map(strip);
+      render();
+    },
+    refresh() {
+      renderTemplates();
       render();
     },
     load(save) {

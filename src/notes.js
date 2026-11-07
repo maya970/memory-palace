@@ -94,6 +94,8 @@ export function createNote(shelf = null) {
     order: null,
     html: '<p><br></p>',
     updated: Date.now(),
+    public: false,
+    publicRef: '',
   };
 }
 
@@ -115,6 +117,8 @@ export function normalizeNote(raw) {
     order: raw?.order == null || raw.order === '' ? null : Math.max(1, Math.min(999, Number(raw.order) || 1)),
     html: sanitizeHtml(raw?.html || '<p><br></p>'),
     updated: Number(raw?.updated) || Date.now(),
+    public: Boolean(raw?.public),
+    publicRef: typeof raw?.publicRef === 'string' ? raw.publicRef : '',
   };
   if (!Number.isFinite(note.order)) note.order = null;
   return note;

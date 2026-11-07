@@ -16,9 +16,14 @@ export function createEditor(root, hooks) {
   const tablePop = root.querySelector('#table-pop');
   const tableTools = root.querySelector('#table-tools');
   const fileInput = root.querySelector('#docx-input');
+  const publicBox = root.querySelector('#public-box');
+  const publicPage = root.querySelector('#public-page');
+  const publicAr = root.querySelector('#public-ar');
+  const publicButton = root.querySelector('#note-public');
   let note = null;
   let savedRange = null;
   let timer = 0;
+  let publishing = false;
 
   function rememberRange() {
     const sel = document.getSelection();
@@ -284,11 +289,59 @@ export function createEditor(root, hooks) {
     }
   });
 
+  function paintPublic() {
+    const id = note?.publicRef;
+    publicBox.classList.toggle('hidden', !id);
+    publicButton.textContent = id ? '再公开一次' : '公开这篇';
+    if (!id) {
+      publicPage.value = '';
+      publicAr.value = '';
+      return;
+    }
+    const origin = location.origin;
+    publicPage.value = `${origin}/library.html?note=${encodeURIComponent(id)}`;
+    publicAr.value = `https://arweave.net/${id}`;
+  }
+
   root.querySelector('#book-close').addEventListener('click', () => hooks.onClose());
   root.querySelector('#note-detach').addEventListener('click', () => {
     pull();
     hooks.onDetach(note);
   });
+  publicButton.addEventListener('click', async () => {
+    if (!note || publishing) return;
+    pull();
+    publishing = true;
+    publicButton.disabled = true;
+    status.textContent = '正在公开到 Arweave';
+    try {
+      const published = await hooks.onPublish(note);
+      note.public = true;
+      note.publicRef = published.id;
+      hooks.onChange(note);
+      paintPublic();
+      status.textContent = '已经公开，链接可以发给别人';
+      hooks.onToast('公开链接已生成。Arweave 有延时，稍后才能打开。');
+    } catch (error) {
+      status.textContent = error?.message || '没有公开成功';
+      hooks.onToast(error?.message || '没有公开成功');
+    } finally {
+      publishing = false;
+      publicButton.disabled = false;
+    }
+  });
+  root.querySelector('#public-copy').addEventListener('click', async () => {
+    if (!publicPage.value) return;
+    try {
+      await navigator.clipboard.writeText(publicPage.value);
+      status.textContent = '阅读页已复制';
+    } catch {
+      publicPage.select();
+      status.textContent = '请手动复制阅读页';
+    }
+  });
+  publicPage.addEventListener('click', () => publicPage.select());
+  publicAr.addEventListener('click', () => publicAr.select());
 
   function snapshot() {
     pull();
@@ -308,6 +361,7 @@ export function createEditor(root, hooks) {
       root.classList.remove('hidden');
       tablePop.classList.add('hidden');
       status.textContent = '写下来就会记住';
+      paintPublic();
       refreshMeta();
       window.setTimeout(() => {
         if (!(next.title || '').trim()) title.focus();

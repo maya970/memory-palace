@@ -97,7 +97,7 @@ export function createDocs(root, hooks) {
       ? rows.map((note, index) => `<tr data-index="${index}">
           <td>${note.order != null ? note.order : ''}</td>
           <td>${escapeHtml(note.cue || '')}</td>
-          <td>${escapeHtml(note.title || '未命名')}</td>
+          <td>${escapeHtml(note.title || '未命名')}${note.publicRef ? ' · 公开' : ''}</td>
           <td>${escapeHtml(where(note))}</td>
           <td>${storeName(note.store)}</td>
         </tr>`).join('')
@@ -120,7 +120,8 @@ export function createDocs(root, hooks) {
     palaceButton.classList.toggle('hidden', mode !== 'local' || !parseShelf(note.shelf));
     root.querySelector('#docs-kicker').textContent = note.cue || '文稿';
     root.querySelector('#docs-title').textContent = note.title || '未命名';
-    root.querySelector('#docs-where').textContent = `${note.order != null ? `第 ${note.order} 处 · ` : ''}${where(note)} · ${storeName(note.store)}`;
+    const publicBit = note.publicRef ? ` · 已公开` : '';
+    root.querySelector('#docs-where').textContent = `${note.order != null ? `第 ${note.order} 处 · ` : ''}${where(note)} · ${storeName(note.store)}${publicBit}`;
     root.querySelector('#docs-body-read').innerHTML = sanitizeHtml(note.html || '<p>这篇还没有正文。</p>');
   }
 

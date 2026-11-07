@@ -1,5 +1,7 @@
 import { buildBundle, byteLength, FREE_BYTES, joinWorld, noteStub, splitWorld } from './bundle.js';
 import { t } from './i18n.js';
+import { createWallets, loadWallets } from './wallets.js';
+import { isEmptyNote, sanitizeHtml } from './notes.js';
 
 const AR_UPLOAD = 'https://upload.ardrive.io/v1/tx';
 const WALRUS_RELAY = 'https://upload-relay.mainnet.walrus.space';
@@ -200,6 +202,41 @@ export async function resolveBundle(data, onProgress) {
 export async function loadRemote(store, id) {
   const manifest = await readStored(store, id);
   return resolveBundle(manifest);
+}
+
+export function isPublicNote(data) {
+  return data?.kind === 'memory-palace-note' && data.public === true;
+}
+
+export function publicNoteUrl(id) {
+  return `${location.origin}/library.html?note=${encodeURIComponent(id)}`;
+}
+
+export function publicArweaveUrl(id) {
+  return `https://arweave.net/${id}`;
+}
+
+export async function publishPublicNote(note) {
+  if (isEmptyNote(note)) throw new Error('空的笔记不能公开');
+  const wallets = loadWallets() || (await createWallets(), loadWallets());
+  if (!wallets?.arweave?.jwk) throw new Error('先创建或导入账户');
+  const payload = {
+    version: 1,
+    kind: 'memory-palace-note',
+    public: true,
+    id: note.id,
+    title: note.title || '',
+    cue: note.cue || '',
+    order: note.order,
+    html: sanitizeHtml(note.html || '<p><br></p>'),
+    updated: note.updated || Date.now(),
+  };
+  const id = await uploadArweave(JSON.stringify(payload), wallets.arweave.jwk, 'public-note');
+  return {
+    id,
+    url: publicNoteUrl(id),
+    arweave: publicArweaveUrl(id),
+  };
 }
 
 function rememberUpload(store, id) {

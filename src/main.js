@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CSS2DObject, CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
-import { BLOCKS } from './blocks.js';
+import { BLOCKS, isNoteHost } from './blocks.js';
+import { canPlaceOn } from './furniture.js';
 import { createInventory } from './inventory.js';
 import { iconFor, loadTextures } from './textures.js';
 import { SPAWN } from './palace.js';
@@ -20,11 +21,14 @@ import {
 import { starterNotes as buildStarterNotes } from './palace.js';
 import { createEditor } from './editor.js';
 import { createBackup } from './backup-ui.js';
+import { publishPublicNote } from './remote.js';
 import { createDocs } from './docs.js';
 import { createGate } from './gate.js';
 import { bundleToSave } from './bundle.js';
-import { accountNeedsExport, markAccountExported, walletFile } from './wallets.js';
+import { accountNeedsExport, loadWallets, markAccountExported, walletFile } from './wallets.js';
 import { applyI18n, t } from './i18n.js';
+import { createCommunity } from './community-ui.js';
+import { dropNoteInRoom, hydrateMods } from './community.js';
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const dirs = ['北', '东北', '东', '东南', '南', '西南', '西', '西北'];
@@ -42,6 +46,9 @@ const pauseEl = document.querySelector('#pause');
 const helpEl = document.querySelector('#help');
 const docsEl = document.querySelector('#docs');
 const leaveEl = document.querySelector('#leave');
+const communityEl = document.querySelector('#community');
+let dropOnClose = false;
+let pendingLook = null;
 
 const input = {
   forward: false,
@@ -86,6 +93,7 @@ scene.add(sun);
 const clouds = makeClouds();
 scene.add(clouds);
 
+hydrateMods();
 loadTextures();
 const world = new World(scene);
 const particles = new Particles(scene);
@@ -95,7 +103,7 @@ world.init(save);
 let notes = (save?.notes || buildStarterNotes()).map(normalizeNote);
 for (const note of notes) {
   const pos = parseShelf(note.shelf);
-  if (!pos || world.get(pos.x, pos.y, pos.z) !== 'bookshelf') note.shelf = null;
+  if (!pos || !isNoteHost(world.get(pos.x, pos.y, pos.z))) note.shelf = null;
 }
 
 const player = new Player(SPAWN);
@@ -164,6 +172,12 @@ const editor = createEditor(document.querySelector('#editor'), {
   onDetach: detachOpenNote,
   onExportWord: exportWord,
   onToast: toast,
+  async onPublish(note) {
+    const existed = Boolean(loadWallets());
+    const published = await publishPublicNote(note);
+    if (!existed) syncAccountBanner();
+    return published;
+  },
 });
 
 function syncAccountBanner() {
@@ -193,6 +207,21 @@ const docs = createDocs(docsEl, {
     if (pos) openShelf(pos.x, pos.y, pos.z);
   },
   onClose: closeDocs,
+});
+
+const community = createCommunity(communityEl, {
+  world: () => world,
+  spawn: () => ({ x: player.x, y: player.y, z: player.z, yaw: player.yaw, pitch: player.pitch }),
+  download,
+  onToast: toast,
+  onClose: closeCommunity,
+  onWriteFirst: openWriteFirst,
+  onFurnitureInstalled(result) {
+    inventory.refresh();
+    toast(result.already ? '官方家居已经在背包里' : `已经装上「${result.name}」`);
+  },
+  onApplyPalace: applyPalacePreset,
+  onGoto: gotoDrop,
 });
 
 const gate = createGate(startEl, {
@@ -225,6 +254,8 @@ document.querySelector('#intro-go').addEventListener('click', () => {
   introEl.classList.add('hidden');
   hud.classList.remove('hidden');
   started = true;
+  if (pendingLook && !stuck(pendingLook)) player.place(pendingLook);
+  pendingLook = null;
   syncAccountBanner();
   lock();
 });
@@ -255,7 +286,11 @@ document.querySelector('#resume').addEventListener('click', () => lock());
 document.querySelector('#pause-bag').addEventListener('click', openBag);
 document.querySelector('#pause-storage').addEventListener('click', openBackup);
 document.querySelector('#pause-docs').addEventListener('click', openDocs);
+document.querySelector('#pause-community').addEventListener('click', openCommunity);
+document.querySelector('#pause-write').addEventListener('click', openWriteFirst);
 document.querySelector('#pause-help').addEventListener('click', openHelp);
+document.querySelector('#gate-community').addEventListener('click', openCommunity);
+document.querySelector('#gate-write').addEventListener('click', openWriteFirst);
 document.querySelector('#help-close').addEventListener('click', () => {
   helpEl.classList.add('hidden');
   if (started) lock();
@@ -365,8 +400,8 @@ window.addEventListener('keydown', (event) => {
   if (event.code === 'KeyF' && started) {
     event.preventDefault();
     const hit = aimed;
-    if (hit?.type === 'bookshelf') openShelf(hit.x, hit.y, hit.z);
-    else toast('先把准星对准一格书架');
+    if (hit && isNoteHost(hit.type)) openShelf(hit.x, hit.y, hit.z);
+    else toast('对准书架、书桌、床、衣柜，或桌上摊开的笔记');
     return;
   }
   if (event.code === 'KeyH' && started && !editor.isOpen()) {
@@ -461,11 +496,11 @@ function updateAim(locked) {
   }
   outline.visible = true;
   outline.position.set(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5);
-  const openShelfInstead = hit.type === 'bookshelf' && !input.sneak;
+  const openShelfInstead = isNoteHost(hit.type) && !input.sneak;
   promptEl.textContent = openShelfInstead
-    ? 'F 或右键　打开这格书架'
+    ? `F 或右键　打开${BLOCKS[hit.type].name}`
     : `${BLOCKS[hit.type].name}　左键拆除　右键放置`;
-  if (hit.type === 'bookshelf' && input.sneak) promptEl.textContent = '潜行中　右键会把方块放在书架上';
+  if (isNoteHost(hit.type) && input.sneak) promptEl.textContent = '潜行中　右键会把方块放在表面上';
   if (openShelfInstead) {
     ghost.visible = false;
     return;
@@ -479,7 +514,7 @@ function updateAim(locked) {
   const x = hit.x + hit.nx;
   const y = hit.y + hit.ny;
   const z = hit.z + hit.nz;
-  if (!canPlace(x, y, z)) {
+  if (!canPlace(x, y, z, held) || !canPlaceOn(BLOCKS[held], BLOCKS[hit.type], hit.nx, hit.ny, hit.nz)) {
     ghost.visible = false;
     return;
   }
@@ -491,7 +526,7 @@ function updateAim(locked) {
 function breakAimed() {
   if (!aimed || !BLOCKS[aimed.type]?.breakable) return;
   const { x, y, z, type } = aimed;
-  const note = type === 'bookshelf' ? notes.find((item) => item.shelf === shelfKey(x, y, z)) : null;
+  const note = isNoteHost(type) ? notes.find((item) => item.shelf === shelfKey(x, y, z)) : null;
   const noteId = note && !isEmptyNote(note) ? note.id : null;
   if (!inventory.collect(type, noteId)) {
     toast('背包满了，这块先留在原地');
@@ -514,7 +549,7 @@ function breakAimed() {
 
 function useAimed() {
   if (!aimed) return;
-  if (aimed.type === 'bookshelf' && !input.sneak) {
+  if (isNoteHost(aimed.type) && !input.sneak) {
     if (!shelfOpenedThisHold) {
       shelfOpenedThisHold = true;
       openShelf(aimed.x, aimed.y, aimed.z);
@@ -525,7 +560,7 @@ function useAimed() {
   const y = aimed.y + aimed.ny;
   const z = aimed.z + aimed.nz;
   const held = inventory.selectedType();
-  if (!held || !canPlace(x, y, z)) return;
+  if (!held || !canPlace(x, y, z, held) || !canPlaceOn(BLOCKS[held], BLOCKS[aimed.type], aimed.nx, aimed.ny, aimed.nz)) return;
   if (!world.setBlock(x, y, z, held)) {
     toast('这种方块已经放得太多了');
     return;
@@ -536,10 +571,10 @@ function useAimed() {
   saveSoon();
 }
 
-function canPlace(x, y, z) {
+function canPlace(x, y, z, held) {
   if (x < -64 || x > 64 || z < -64 || z > 64 || y < -2 || y > 32) return false;
-  if (world.isSolid(x, y, z)) return false;
-  if (blockHitsPlayer(x, y, z, player.x, player.y, player.z)) return false;
+  if (world.get(x, y, z)) return false;
+  if (BLOCKS[held]?.solid !== false && blockHitsPlayer(x, y, z, player.x, player.y, player.z)) return false;
   return true;
 }
 
@@ -559,16 +594,26 @@ function openShelf(x, y, z) {
 function closeEditor() {
   if (!editor.isOpen()) return;
   const note = editor.close();
-  if (isEmptyNote(note)) notes = notes.filter((item) => item.id !== note.id);
+  if (isEmptyNote(note)) {
+    notes = notes.filter((item) => item.id !== note.id);
+    dropOnClose = false;
+  } else if (dropOnClose && !note.shelf) {
+    dropOnClose = false;
+    const cell = dropNoteInRoom(world, notes, note);
+    if (!cell) toast('头顶没有遮挡，不能投放。先点进一座现成宫殿，或走到东南角那间小书房。');
+    else toast(`已经放到 ${cell.x}, ${cell.y}, ${cell.z}，进去后自己整理`);
+    community.refresh();
+  }
   saveSoon();
-  lock();
+  if (started) lock();
 }
 
 function detachOpenNote(note) {
   const pos = parseShelf(note.shelf);
   const noteId = isEmptyNote(note) ? null : note.id;
-  if (!inventory.collect('bookshelf', noteId)) {
-    toast('背包满了，这格书架还在原地');
+  const host = pos && isNoteHost(world.get(pos.x, pos.y, pos.z)) ? world.get(pos.x, pos.y, pos.z) : 'open_notebook';
+  if (!inventory.collect(host, noteId)) {
+    toast('背包满了，这一格还在原地');
     return;
   }
   if (noteId) {
@@ -578,7 +623,7 @@ function detachOpenNote(note) {
     notes = notes.filter((item) => item.id !== note.id);
     if (routeId === note.id) routeId = null;
   }
-  if (pos && world.get(pos.x, pos.y, pos.z) === 'bookshelf') world.setBlock(pos.x, pos.y, pos.z, null);
+  if (pos && isNoteHost(world.get(pos.x, pos.y, pos.z))) world.setBlock(pos.x, pos.y, pos.z, null);
   editor.close();
   saveSoon();
   lock();
@@ -718,7 +763,7 @@ function lock() {
 }
 
 function surfaceBlocked() {
-  return editor.isOpen() || inventory.isOpen() || backup.isOpen() || docs.isOpen() || !helpEl.classList.contains('hidden') || !startEl.classList.contains('hidden') || !introEl.classList.contains('hidden');
+  return editor.isOpen() || inventory.isOpen() || backup.isOpen() || docs.isOpen() || community.isOpen() || !helpEl.classList.contains('hidden') || !startEl.classList.contains('hidden') || !introEl.classList.contains('hidden');
 }
 
 function overlayOpen() {
@@ -803,6 +848,59 @@ function openBackup() {
   pauseEl.classList.add('hidden');
   docs.close();
   backup.open();
+}
+
+function openCommunity() {
+  if (editor.isOpen()) return;
+  community.open();
+  pauseEl.classList.add('hidden');
+  if (started) unlockForUi();
+}
+
+function closeCommunity() {
+  community.close();
+  if (started) lock();
+}
+
+function openWriteFirst() {
+  if (editor.isOpen()) return;
+  community.close();
+  dropOnClose = true;
+  const note = createNote(null);
+  notes.push(note);
+  pauseEl.classList.add('hidden');
+  if (started) unlockForUi();
+  editor.open(note, '先写入。关闭这一页就会存下来，并放到有屋顶的房间里');
+}
+
+function applyPalacePreset(preset) {
+  world.init(preset.world || { removed: [], placed: [] });
+  if (preset.spawn) player.place(preset.spawn);
+  for (const note of notes) {
+    const pos = parseShelf(note.shelf);
+    if (!pos || !isNoteHost(world.get(pos.x, pos.y, pos.z))) note.shelf = null;
+  }
+  settleCarriedNotes();
+  saveSoon();
+  community.close();
+  toast(`已经铺好「${preset.name || '这座宫殿'}」`);
+  if (started) lock();
+  else {
+    startEl.classList.add('hidden');
+    introEl.classList.remove('hidden');
+  }
+}
+
+function gotoDrop(x, y, z) {
+  const look = { x: x + 0.5, y, z: z + 0.5, yaw: player.yaw, pitch: -0.12 };
+  community.close();
+  if (started) {
+    if (!stuck(look)) player.place(look);
+    lock();
+    return;
+  }
+  pendingLook = look;
+  toast('走进去之后会站到这条笔记旁边');
 }
 
 function closeBackup() {

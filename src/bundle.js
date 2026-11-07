@@ -85,6 +85,8 @@ export function noteStub(note, ref, store) {
     updated: note.updated,
     ref,
     store,
+    public: Boolean(note.public),
+    publicRef: note.publicRef || '',
   };
 }
 

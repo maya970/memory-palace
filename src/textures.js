@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { BLOCKS, EXTRA_BLOCKS, WOOLS } from './blocks.js';
+import { FURNITURE_BLOCKS } from './furniture.js';
 
 const cache = new Map();
 
@@ -325,6 +326,50 @@ function styledTextures(block, seed) {
   return pack(face, face, face, Boolean(block.transparent));
 }
 
+function furnitureTextures(block) {
+  const face = canvas((ctx) => {
+    if (block.look === 'check') {
+      for (let y = 0; y < 16; y += 1) {
+        for (let x = 0; x < 16; x += 1) {
+          const on = (Math.floor(x / 4) + Math.floor(y / 4)) % 2 === 0;
+          ctx.fillStyle = on ? block.color : '#f4ead4';
+          ctx.fillRect(x, y, 1, 1);
+        }
+      }
+      return;
+    }
+    if (block.look === 'wood') {
+      for (let y = 0; y < 16; y += 1) {
+        ctx.fillStyle = y % 4 === 0 ? '#6e4b32' : block.color;
+        ctx.fillRect(0, y, 16, 1);
+      }
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.fillRect(0, 0, 16, 1);
+      ctx.fillRect(0, 15, 16, 1);
+      return;
+    }
+    if (block.look === 'item') {
+      ctx.fillStyle = '#c8b090';
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = block.color;
+      ctx.fillRect(3, 3, 10, 10);
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.fillRect(4, 4, 4, 3);
+      return;
+    }
+    const rgb = hexToRgb(block.color);
+    for (let y = 0; y < 16; y += 1) {
+      for (let x = 0; x < 16; x += 1) {
+        const n = hash(x, y, rgb.r + 9) - 0.5;
+        const scale = 1 + n * 0.12;
+        ctx.fillStyle = `rgb(${Math.round(rgb.r * scale)},${Math.round(rgb.g * scale)},${Math.round(rgb.b * scale)})`;
+        ctx.fillRect(x, y, 1, 1);
+      }
+    }
+  });
+  return pack(face, face, face, block.solid === false);
+}
+
 function woolTextures(hex) {
   const base = hexToRgb(hex);
   const face = canvas((ctx) => {
@@ -358,8 +403,14 @@ export function loadTextures() {
   cache.set('bedrock', bedrockTextures());
   for (const wool of WOOLS) cache.set(wool.id, woolTextures(wool.color));
   EXTRA_BLOCKS.forEach((block, index) => cache.set(block.id, styledTextures(block, 20 + index)));
+  FURNITURE_BLOCKS.forEach((block) => cache.set(block.id, furnitureTextures(block)));
   ready = true;
   return cache;
+}
+
+export function cacheFurniture(block) {
+  if (!ready) loadTextures();
+  cache.set(block.id, furnitureTextures(block));
 }
 
 export function texturesFor(type) {
