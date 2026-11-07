@@ -1,6 +1,4 @@
-import { findManifest } from './chain.js';
 import { onLang, t } from './i18n.js';
-import { resolveBundle } from './remote.js';
 import { createWallets, loadWallets, saveWallets, walletAddresses } from './wallets.js';
 
 function escapeHtml(value) {
@@ -69,6 +67,8 @@ export function createGate(root, hooks) {
 
   async function restore(wallets) {
     paint(0.08, t('findingIndex'));
+    const { findManifest } = await import('./chain.js');
+    const { resolveBundle } = await import('./remote.js');
     const manifest = await findManifest(wallets, ({ ratio, label }) => paint(ratio, label));
     if (!manifest) {
       idle(t('noChain'));
@@ -136,6 +136,7 @@ export function createGate(root, hooks) {
     setBusy(true);
     paint(0.2, t('readingFile'));
     try {
+      const { resolveBundle } = await import('./remote.js');
       const bundle = await resolveBundle(JSON.parse(await file.text()), ({ ratio, label }) => paint(0.2 + ratio * 0.8, label));
       hooks.onRestore(bundle);
     } catch (error) {

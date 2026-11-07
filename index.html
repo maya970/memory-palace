@@ -57,7 +57,7 @@
       <div id="gate-wallet" class="address-stack"></div>
       <div class="gate-gfx">
         <p class="mods-label" data-i18n="quality">画质</p>
-        <p class="apple-lead" data-i18n="qualityHint">先选好，走进去之后才按这个画质加载。手机和平板请用简单。</p>
+        <p class="apple-lead" data-i18n="qualityHint">现在只记下来。登录和注册都不加载宫殿，走进去才按这个画质铺方块，并显示进度。手机和平板请用简单。</p>
         <div class="gfx-row">
           <button type="button" data-light="simple">简单</button>
           <button type="button" data-light="cinematic">电影级</button>
@@ -74,8 +74,8 @@
       </div>
       <input id="gate-wallet-file" type="file" accept="application/json,.json" hidden />
       <input id="gate-palace-file" type="file" accept="application/json,.json" hidden />
-      <div class="meter" hidden><div class="meter-fill"></div></div>
-      <p class="apple-status" data-status></p>
+      <div class="meter"><div class="meter-fill indeterminate"></div></div>
+      <p class="apple-status" data-status>正在打开登录</p>
     </section>
   </div>
 
@@ -420,6 +420,6 @@
     </div>
   </div>
 
-  <script type="module" src="/src/main.js"></script>
+  <script type="module" src="/src/boot.js"></script>
 </body>
 </html>

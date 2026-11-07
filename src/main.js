@@ -7,7 +7,7 @@ import { iconFor, loadTextures } from './textures.js';
 import { BUILD_MAX, BUILD_MIN, SPAWN, Y_MAX, Y_MIN } from './palace.js';
 import { World, Particles } from './world.js';
 import { Player, blockHitsPlayer, facingFromYaw } from './player.js';
-import { hasSave, loadSave, writeSave } from './storage.js';
+import { loadSave, writeSave } from './storage.js';
 import { sfx } from './audio.js';
 import {
   createNote,
@@ -23,10 +23,9 @@ import { createEditor } from './editor.js';
 import { createBackup } from './backup-ui.js';
 import { publishPublicNote } from './remote.js';
 import { createDocs } from './docs.js';
-import { createGate } from './gate.js';
 import { bundleToSave } from './bundle.js';
-import { accountNeedsExport, clearWallets, loadWallets, markAccountExported, walletFile } from './wallets.js';
-import { applyI18n, t } from './i18n.js';
+import { accountNeedsExport, clearWallets, loadWallets } from './wallets.js';
+import { t } from './i18n.js';
 import { createCommunity } from './community-ui.js';
 import { applySavedMods, dropNoteInRoom, hydrateMods } from './community.js';
 import { applyLights, beginGraphics, currentGraphics, loadGraphics, saveGraphics } from './graphics.js';
@@ -238,44 +237,13 @@ const community = createCommunity(communityEl, {
   onGoto: gotoDrop,
 });
 
-const gate = createGate(startEl, {
-  autoEnter: sessionStorage.getItem('memory-palace-enter') === '1',
-  hasLocal: () => hasSave(),
-  onRestore: restoreAndEnter,
-  onAccount: syncAccountBanner,
-  onWriteFirst: openWriteFirst,
-  onIntro() {
-    sessionStorage.removeItem('memory-palace-enter');
-    introEl.classList.remove('hidden');
-  },
-});
-applyI18n();
-gate.showHome();
-
 resize();
 window.addEventListener('resize', resize);
 window.addEventListener('beforeunload', persist);
 
-document.querySelector('#account-export').addEventListener('click', () => {
-  const file = walletFile();
-  if (!file) return;
-  download(file, t('accountFile'), 'application/json');
-  markAccountExported();
-  syncAccountBanner();
-  backup.refresh();
-});
 syncAccountBanner();
-document.querySelector('#intro-go').addEventListener('click', async () => {
-  const btn = document.querySelector('#intro-go');
-  if (btn.disabled) return;
-  btn.disabled = true;
-  try {
-    await ensureWorld(introEl);
-  } catch {
-    btn.disabled = false;
-    toast('宫殿没有加载起来');
-    return;
-  }
+export async function startFromIntro() {
+  await ensureWorld(introEl);
   sfx.unlock();
   introEl.classList.add('hidden');
   hud.classList.remove('hidden');
@@ -285,7 +253,7 @@ document.querySelector('#intro-go').addEventListener('click', async () => {
   syncAccountBanner();
   lock();
   syncPause();
-});
+}
 document.querySelector('#top-upload').addEventListener('click', async () => {
   const message = await backup.upload();
   if (message) toast(message, 12000);
@@ -330,7 +298,7 @@ document.querySelectorAll('#graphics [data-water]').forEach((button) => {
     applyLights(renderer, sunLight, world.meshes(), gfx);
   });
 });
-document.querySelectorAll('[data-light]').forEach((button) => {
+document.querySelectorAll('#graphics [data-light]').forEach((button) => {
   button.addEventListener('click', async () => {
     gfx = saveGraphics({ light: button.dataset.light });
     paintGraphics();
@@ -1211,7 +1179,7 @@ function closeCommunity() {
   if (started) lock();
 }
 
-async function openWriteFirst() {
+export async function openWriteFirst() {
   if (editor.isOpen()) return;
   if (!worldReady) {
     try {

@@ -285,7 +285,11 @@ body.account-pending #compass { top: 58px; }
   padding: 24px;
 }
 
-#start { background: linear-gradient(180deg, rgba(16, 28, 38, 0.15), rgba(16, 22, 28, 0.5)); }
+#start {
+  z-index: 20;
+  pointer-events: auto;
+  background: linear-gradient(180deg, rgba(16, 28, 38, 0.15), rgba(16, 22, 28, 0.5));
+}
 
 .menu-card {
   width: min(460px, 100%);
