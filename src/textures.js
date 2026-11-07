@@ -363,12 +363,7 @@ function furnitureTextures(block) {
       return;
     }
     if (block.look === 'item') {
-      ctx.fillStyle = '#c8b090';
-      ctx.fillRect(0, 0, 16, 16);
-      ctx.fillStyle = block.color;
-      ctx.fillRect(3, 3, 10, 10);
-      ctx.fillStyle = 'rgba(255,255,255,0.35)';
-      ctx.fillRect(4, 4, 4, 3);
+      drawItemFace(ctx, block);
       return;
     }
     const rgb = hexToRgb(block.color);
@@ -381,7 +376,34 @@ function furnitureTextures(block) {
       }
     }
   });
-  return pack(face, face, face, block.solid === false);
+  return pack(face, face, face, Boolean(block.transparent));
+}
+
+function drawItemFace(ctx, block) {
+  const rgb = hexToRgb(block.color);
+  if (block.id === 'candle') {
+    ctx.fillStyle = '#e8d9a8';
+    ctx.fillRect(0, 0, 16, 16);
+    ctx.fillStyle = '#f4e6b4';
+    ctx.fillRect(4, 2, 8, 11);
+    ctx.fillStyle = '#fff6d2';
+    ctx.fillRect(5, 3, 3, 4);
+    ctx.fillStyle = '#ffb347';
+    ctx.fillRect(7, 0, 2, 3);
+    ctx.fillStyle = '#ffe08a';
+    ctx.fillRect(7, 0, 1, 2);
+    return;
+  }
+  for (let y = 0; y < 16; y += 1) {
+    for (let x = 0; x < 16; x += 1) {
+      const n = hash(x, y, rgb.r + 11) - 0.5;
+      const scale = 1 + n * 0.1;
+      ctx.fillStyle = `rgb(${Math.round(rgb.r * scale)},${Math.round(rgb.g * scale)},${Math.round(rgb.b * scale)})`;
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+  ctx.fillStyle = 'rgba(255,255,255,0.22)';
+  ctx.fillRect(2, 2, 5, 3);
 }
 
 function woolTextures(hex) {
@@ -433,6 +455,7 @@ export function texturesFor(type) {
 }
 
 export function iconFor(type) {
+  if (!ready) return 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==';
   return texturesFor(type).icon;
 }
 

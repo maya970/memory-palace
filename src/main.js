@@ -29,12 +29,15 @@ import { accountNeedsExport, clearWallets, loadWallets, markAccountExported, wal
 import { applyI18n, t } from './i18n.js';
 import { createCommunity } from './community-ui.js';
 import { applySavedMods, dropNoteInRoom, hydrateMods } from './community.js';
-import { applyLights, loadGraphics, saveGraphics } from './graphics.js';
+import { applyLights, beginGraphics, currentGraphics, loadGraphics, saveGraphics } from './graphics.js';
+import { isHandheld, markDevice } from './device.js';
 import { WaterView } from './water.js';
 import { Atmosphere } from './atmosphere.js';
 import { installEnvironment, setClimate } from './climate.js';
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const handheld = isHandheld();
+markDevice();
 const dirs = ['北', '东北', '东', '东南', '南', '西南', '西', '西北'];
 const view = document.querySelector('#view');
 const hud = document.querySelector('#hud');
@@ -73,8 +76,8 @@ scene.fog = new THREE.FogExp2(0xb08a62, 0.012);
 const camera = new THREE.PerspectiveCamera(72, 1, 0.08, 400);
 camera.rotation.order = 'YXZ';
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+const renderer = new THREE.WebGLRenderer({ antialias: !handheld, powerPreference: handheld ? 'low-power' : 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, handheld ? 1 : 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 view.appendChild(renderer.domElement);
 
@@ -105,22 +108,17 @@ scene.add(clouds);
 hydrateMods();
 const save = loadSave();
 applySavedMods(save?.mods);
-loadTextures();
 const waterView = new WaterView(scene);
 const world = new World(scene, waterView);
 const particles = new Particles(scene);
-world.init(save);
-installEnvironment(renderer, scene);
-applyLights(renderer, sunLight, world.meshes(), gfx);
+applyLights(renderer, sunLight, world.meshes(), { ...gfx, light: 'simple', water: 'cube' });
 const atmosphere = new Atmosphere(renderer, scene, camera);
 let lastIndoor = null;
 applyMood(false);
 
 let notes = (save?.notes || buildStarterNotes()).map(normalizeNote);
-for (const note of notes) {
-  const pos = parseShelf(note.shelf);
-  if (!pos || !isNoteHost(world.hostType(pos.x, pos.y, pos.z))) note.shelf = null;
-}
+let worldReady = false;
+let worldBoot = null;
 
 const player = new Player(SPAWN);
 if (save?.player && !stuck(save.player)) player.place(save.player);
@@ -156,7 +154,6 @@ let rightCool = 0;
 let shelfOpenedThisHold = false;
 let saveTimer = 0;
 let allowSave = true;
-settleCarriedNotes();
 
 const outline = new THREE.LineSegments(
   new THREE.EdgesGeometry(new THREE.BoxGeometry(1.01, 1.01, 1.01)),
@@ -268,7 +265,17 @@ document.querySelector('#account-export').addEventListener('click', () => {
   backup.refresh();
 });
 syncAccountBanner();
-document.querySelector('#intro-go').addEventListener('click', () => {
+document.querySelector('#intro-go').addEventListener('click', async () => {
+  const btn = document.querySelector('#intro-go');
+  if (btn.disabled) return;
+  btn.disabled = true;
+  try {
+    await ensureWorld(introEl);
+  } catch {
+    btn.disabled = false;
+    toast('宫殿没有加载起来');
+    return;
+  }
   sfx.unlock();
   introEl.classList.add('hidden');
   hud.classList.remove('hidden');
@@ -277,6 +284,7 @@ document.querySelector('#intro-go').addEventListener('click', () => {
   pendingLook = null;
   syncAccountBanner();
   lock();
+  syncPause();
 });
 document.querySelector('#top-upload').addEventListener('click', async () => {
   const message = await backup.upload();
@@ -301,7 +309,12 @@ document.querySelector('#leave-upload').addEventListener('click', async () => {
   lock();
   if (document.pointerLockElement !== renderer.domElement) syncPause();
 });
-document.querySelector('#resume').addEventListener('click', () => lock());
+document.querySelector('#resume').addEventListener('click', () => {
+  pauseEl.classList.add('hidden');
+  appUnlock = false;
+  lock();
+  syncPause();
+});
 document.querySelector('#pause-bag').addEventListener('click', openBag);
 document.querySelector('#pause-storage').addEventListener('click', openBackup);
 document.querySelector('#pause-docs').addEventListener('click', openDocs);
@@ -309,18 +322,21 @@ document.querySelector('#pause-community').addEventListener('click', openCommuni
 document.querySelector('#pause-graphics').addEventListener('click', openGraphics);
 document.querySelector('#graphics-close').addEventListener('click', closeGraphics);
 document.querySelectorAll('#graphics [data-water]').forEach((button) => {
-  button.addEventListener('click', () => {
+  button.addEventListener('click', async () => {
     gfx = saveGraphics({ water: button.dataset.water });
     paintGraphics();
-    world.rebuildMeshes();
+    if (!started || !worldReady) return;
+    await world.rebuildMeshes();
     applyLights(renderer, sunLight, world.meshes(), gfx);
   });
 });
 document.querySelectorAll('[data-light]').forEach((button) => {
-  button.addEventListener('click', () => {
+  button.addEventListener('click', async () => {
     gfx = saveGraphics({ light: button.dataset.light });
     paintGraphics();
-    world.rebuildMeshes();
+    if (!started || !worldReady) return;
+    if (gfx.light !== 'simple') installEnvironment(renderer, scene);
+    await world.rebuildMeshes();
     applyLights(renderer, sunLight, world.meshes(), gfx);
     applyMood(lastIndoor);
   });
@@ -329,6 +345,7 @@ document.querySelectorAll('#graphics [data-weather]').forEach((button) => {
   button.addEventListener('click', () => {
     gfx = saveGraphics({ weather: button.dataset.weather });
     paintGraphics();
+    if (!started) return;
     applyMood(lastIndoor);
   });
 });
@@ -339,6 +356,76 @@ document.querySelector('#help-close').addEventListener('click', () => {
   helpEl.classList.add('hidden');
   if (started) lock();
 });
+function bindHold(button, press, release) {
+  const down = (event) => {
+    event.preventDefault();
+    button.setPointerCapture?.(event.pointerId);
+    press();
+  };
+  const up = () => release();
+  button.addEventListener('pointerdown', down);
+  button.addEventListener('pointerup', up);
+  button.addEventListener('pointercancel', up);
+  button.addEventListener('lostpointercapture', up);
+}
+
+document.querySelectorAll('#touch-pad [data-move]').forEach((button) => {
+  const key = button.dataset.move;
+  bindHold(button, () => { input[key] = true; }, () => { input[key] = false; });
+});
+bindHold(document.querySelector('#touch-pad [data-act="jump"]'), () => { input.jump = true; }, () => { input.jump = false; });
+bindHold(document.querySelector('#touch-pad [data-act="sneak"]'), () => { input.sneak = true; }, () => { input.sneak = false; });
+bindHold(document.querySelector('#touch-pad [data-act="break"]'), () => { leftDown = true; leftCool = 0; }, () => { leftDown = false; });
+bindHold(document.querySelector('#touch-pad [data-act="place"]'), () => {
+  rightDown = true;
+  rightCool = 0;
+  shelfOpenedThisHold = false;
+}, () => { rightDown = false; });
+document.querySelector('#touch-pad [data-act="use"]').addEventListener('pointerdown', (event) => {
+  event.preventDefault();
+  if (!inPlay() || !aimed) return;
+  const host = world.hostType(aimed.x, aimed.y, aimed.z);
+  if (isNoteHost(host)) openShelf(aimed.x, aimed.y, aimed.z);
+});
+document.querySelector('#touch-pad [data-act="bag"]').addEventListener('pointerdown', (event) => {
+  event.preventDefault();
+  if (inventory.isOpen()) closeBag();
+  else openBag();
+});
+document.querySelector('#touch-pad [data-act="menu"]').addEventListener('pointerdown', (event) => {
+  event.preventDefault();
+  input.forward = input.back = input.left = input.right = input.jump = input.sneak = false;
+  leftDown = false;
+  rightDown = false;
+  pauseEl.classList.remove('hidden');
+  syncPause();
+});
+
+let lookId = null;
+let lookX = 0;
+let lookY = 0;
+renderer.domElement.addEventListener('touchstart', (event) => {
+  if (!inPlay() || lookId != null) return;
+  const tap = event.changedTouches[0];
+  if (tap.clientX < window.innerWidth * 0.34) return;
+  lookId = tap.identifier;
+  lookX = tap.clientX;
+  lookY = tap.clientY;
+}, { passive: true });
+renderer.domElement.addEventListener('touchmove', (event) => {
+  if (lookId == null) return;
+  const tap = [...event.changedTouches].find((item) => item.identifier === lookId);
+  if (!tap) return;
+  player.look((tap.clientX - lookX) * 1.7, (tap.clientY - lookY) * 1.7);
+  lookX = tap.clientX;
+  lookY = tap.clientY;
+}, { passive: true });
+const endLook = (event) => {
+  if ([...event.changedTouches].some((item) => item.identifier === lookId)) lookId = null;
+};
+renderer.domElement.addEventListener('touchend', endLook);
+renderer.domElement.addEventListener('touchcancel', endLook);
+
 hotbarEl.addEventListener('click', (event) => {
   const button = event.target.closest('[data-slot]');
   if (!button) return;
@@ -349,7 +436,7 @@ hotbarEl.addEventListener('click', (event) => {
 renderer.domElement.addEventListener('contextmenu', (event) => event.preventDefault());
 renderer.domElement.addEventListener('mousedown', (event) => {
   if (!started || overlayOpen()) return;
-  if (document.pointerLockElement !== renderer.domElement) {
+  if (!handheld && document.pointerLockElement !== renderer.domElement) {
     lock();
     return;
   }
@@ -469,7 +556,7 @@ function frame(now) {
 
   if (!started) idleCamera(now);
   else {
-    if (locked) player.update(dt, world, input);
+    if (inPlay()) player.update(dt, world, input);
     camera.rotation.order = 'YXZ';
     camera.rotation.y = player.yaw;
     camera.rotation.x = player.pitch;
@@ -482,7 +569,7 @@ function frame(now) {
     toast('你掉出了这座岛，回到了南边的路上');
   }
 
-  if (started && locked) {
+  if (inPlay()) {
     if (leftDown) {
       leftCool -= dt;
       if (leftCool <= 0) {
@@ -499,30 +586,30 @@ function frame(now) {
     }
   }
 
-  updateAim(locked);
-  updateLabels(locked);
+  updateAim(inPlay());
+  updateLabels(inPlay());
   updateHud();
   hud.classList.toggle('writing', editor.isOpen());
   particles.update(dt);
   clouds.position.x = reducedMotion ? 0 : Math.sin(now * 0.00004) * 6;
-  waterView.update(now, gfx, camera, sun);
+  const drawGfx = currentGraphics();
+  waterView.update(now, drawGfx, camera, sun);
   if (started) {
     flowAcc += dt;
     if (flowAcc > 0.28) {
       flowAcc = 0;
-      waterView.tick(world, gfx);
+      waterView.tick(world, drawGfx);
     }
   }
-  if (waterView.dirty) waterView.rebuild(world, gfx);
+  if (waterView.dirty) waterView.rebuild(world, drawGfx);
   const indoor = started && world.isRoofed(player.x, player.y, player.z);
   if (indoor !== lastIndoor) {
     lastIndoor = indoor;
     applyMood(indoor);
   }
   if (indoor) lamp.position.set(player.x, player.y + 1.4, player.z);
-  atmosphere.render(now, sun, gfx.light !== 'simple');
+  atmosphere.render(now, sun, started && drawGfx.light !== 'simple', dt, camera.position);
   labelRenderer.render(scene, camera);
-  gate.markReady();
   requestAnimationFrame(frame);
 }
 
@@ -553,15 +640,17 @@ function updateAim(locked) {
     promptEl.textContent = '';
     return;
   }
-  outline.visible = true;
-  outline.position.set(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5);
   const cover = world.getCover(hit.x, hit.y, hit.z);
+  const lift = cover ? surfaceLift(BLOCKS[hit.type]) : 0;
+  outline.visible = true;
+  outline.position.set(hit.x + 0.5, hit.y + 0.5 + lift, hit.z + 0.5);
+  const shown = cover || hit.type;
   const host = cover && isNoteHost(cover) ? cover : hit.type;
   const openShelfInstead = isNoteHost(host) && !input.sneak;
   promptEl.textContent = openShelfInstead
-    ? `F 或右键　打开${BLOCKS[host].name}`
-    : `${BLOCKS[cover || hit.type].name}　左键拆除　右键放置`;
-  if (isNoteHost(host) && input.sneak) promptEl.textContent = '潜行中　右键会把方块贴在表面上';
+    ? (handheld ? `开　打开${BLOCKS[host].name}` : `F 或右键　打开${BLOCKS[host].name}`)
+    : (handheld ? `${BLOCKS[shown].name}　拆　放` : `${BLOCKS[shown].name}　左键拆除　右键放置`);
+  if (isNoteHost(host) && input.sneak) promptEl.textContent = handheld ? '潜行中　放会贴在表面上' : '潜行中　右键会把方块贴在表面上';
   if (openShelfInstead) {
     ghost.visible = false;
     return;
@@ -569,7 +658,7 @@ function updateAim(locked) {
   const held = inventory.selectedType();
   if (!held) {
     ghost.visible = false;
-    promptEl.textContent = '手里是空的　按 E 把方块拖进物品栏';
+    promptEl.textContent = handheld ? '手里是空的　开背包把方块拖进物品栏' : '手里是空的　按 E 把方块拖进物品栏';
     return;
   }
   const spot = placeSpot(hit, held);
@@ -861,7 +950,7 @@ function saveSoon() {
 }
 
 function persist() {
-  if (!allowSave) return;
+  if (!allowSave || !worldReady) return;
   try {
     writeSave(snapshot());
   } catch {
@@ -899,8 +988,76 @@ function toast(message, stay = 3200) {
   window.setTimeout(() => el.remove(), stay);
 }
 
+function inPlay() {
+  if (!started || overlayOpen() || !pauseEl.classList.contains('hidden')) return false;
+  return handheld || document.pointerLockElement === renderer.domElement;
+}
+
+function paintMeter(root, ratio, label) {
+  const meter = root?.querySelector('.meter');
+  const fill = root?.querySelector('.meter-fill');
+  const status = root?.querySelector('[data-status]');
+  if (!meter || !fill) return;
+  meter.hidden = false;
+  fill.classList.remove('indeterminate');
+  fill.style.width = `${Math.max(8, Math.round(ratio * 100))}%`;
+  if (status) status.textContent = label || t('localPreparing');
+}
+
+function hideMeter(root) {
+  const meter = root?.querySelector('.meter');
+  const fill = root?.querySelector('.meter-fill');
+  const status = root?.querySelector('[data-status]');
+  if (meter) meter.hidden = true;
+  if (fill) {
+    fill.classList.remove('indeterminate');
+    fill.style.width = '0';
+  }
+  if (status) status.textContent = '';
+}
+
+async function ensureWorld(progressRoot) {
+  if (worldReady) return;
+  if (worldBoot) return worldBoot;
+  const root = progressRoot || introEl;
+  worldBoot = (async () => {
+    const paint = (ratio) => paintMeter(root, ratio, t('localPreparing'));
+    paint(0.06);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    loadTextures();
+    inventory.refresh();
+    paint(0.14);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    world.init(save);
+    beginGraphics();
+    gfx = loadGraphics();
+    paint(0.22);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    if (gfx.light !== 'simple') installEnvironment(renderer, scene);
+    await world.rebuildMeshes((ratio) => paint(0.22 + ratio * 0.7));
+    applyLights(renderer, sunLight, world.meshes(), gfx);
+    for (const note of notes) {
+      const pos = parseShelf(note.shelf);
+      if (!pos || !isNoteHost(world.hostType(pos.x, pos.y, pos.z))) note.shelf = null;
+    }
+    settleCarriedNotes();
+    lastIndoor = null;
+    applyMood(world.isRoofed(player.x, player.y, player.z));
+    worldReady = true;
+    paint(1);
+    hideMeter(root);
+  })();
+  try {
+    await worldBoot;
+  } catch (error) {
+    worldBoot = null;
+    hideMeter(root);
+    throw error;
+  }
+}
+
 function lock() {
-  if (!started || overlayOpen()) return;
+  if (!started || overlayOpen() || handheld) return;
   try {
     renderer.domElement.requestPointerLock()?.catch(() => {});
   } catch {
@@ -931,21 +1088,22 @@ function dismissLeave() {
 
 function syncPause() {
   const locked = document.pointerLockElement === renderer.domElement;
-  if (!locked) {
+  if (!locked && !handheld) {
     leftDown = false;
     rightDown = false;
-  } else {
+  } else if (locked) {
     leaveSettled = false;
     appUnlock = false;
     leaveEl.classList.add('hidden');
   }
   document.body.classList.toggle('locked', locked);
-  const free = started && !locked && !surfaceBlocked();
+  const free = started && !locked && !handheld && !surfaceBlocked();
   const ask = free && !leaveSettled && !appUnlock;
   if (ask) ignoreEscUntil = performance.now() + 500;
   leaveEl.classList.toggle('hidden', !ask);
-  pauseEl.classList.toggle('hidden', !(free && !ask));
-  document.querySelector('#crosshair').classList.toggle('hidden', !locked);
+  if (!handheld) pauseEl.classList.toggle('hidden', !(free && !ask));
+  document.querySelector('#crosshair').classList.toggle('hidden', handheld || !locked);
+  document.querySelector('#touch-pad').classList.toggle('hidden', !(handheld && inPlay()));
   syncAccountBanner();
 }
 
@@ -997,8 +1155,8 @@ function openBackup() {
 }
 
 function applyMood(indoor) {
-  lamp.intensity = gfx.light !== 'simple' && indoor ? 0.55 : 0;
-  if (gfx.light === 'simple') {
+  lamp.intensity = started && gfx.light !== 'simple' && indoor ? 0.55 : 0;
+  if (!started || gfx.light === 'simple') {
     scene.environmentIntensity = 0;
     scene.background = new THREE.Color(0x8ec8ef);
     scene.fog = new THREE.Fog(0x8ec8ef, 52, 168);
@@ -1053,8 +1211,16 @@ function closeCommunity() {
   if (started) lock();
 }
 
-function openWriteFirst() {
+async function openWriteFirst() {
   if (editor.isOpen()) return;
+  if (!worldReady) {
+    try {
+      await ensureWorld(startEl.classList.contains('hidden') ? introEl : startEl);
+    } catch {
+      toast('宫殿没有加载起来');
+      return;
+    }
+  }
   community.close();
   dropOnClose = true;
   const note = createNote(null);
@@ -1073,8 +1239,17 @@ function logout() {
   location.reload();
 }
 
-function applyPalacePreset(preset) {
+async function applyPalacePreset(preset) {
+  if (!worldReady) {
+    try {
+      await ensureWorld(startEl.classList.contains('hidden') ? introEl : startEl);
+    } catch {
+      toast('宫殿没有加载起来');
+      return;
+    }
+  }
   world.init(preset.world || { removed: [], placed: [] });
+  await world.rebuildMeshes();
   applyLights(renderer, sunLight, world.meshes(), gfx);
   if (preset.spawn) player.place(preset.spawn);
   lastIndoor = null;
@@ -1133,6 +1308,7 @@ function stuck(pos) {
 }
 
 function resize() {
+  markDevice();
   const width = window.innerWidth;
   const height = window.innerHeight;
   camera.aspect = width / Math.max(1, height);

@@ -1154,3 +1154,64 @@ button.library-row {
 #note-where { color: #f0d7b0; }
 .empty-notes { color: #f0d7b0; }
 
+#touch-pad {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+#touch-pad button {
+  pointer-events: auto;
+  border: 0;
+  color: #fff6e8;
+  background: rgba(20, 14, 10, 0.48);
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+}
+.touch-move {
+  position: absolute;
+  left: max(12px, env(safe-area-inset-left));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: 64px 64px 64px;
+  grid-template-rows: 64px 64px 64px;
+  gap: 8px;
+  pointer-events: none;
+}
+.touch-move button { pointer-events: auto; border-radius: 18px; font-size: 18px; }
+.touch-move [data-move="forward"] { grid-column: 2; grid-row: 1; }
+.touch-move [data-move="left"] { grid-column: 1; grid-row: 2; }
+.touch-move [data-move="back"] { grid-column: 2; grid-row: 2; }
+.touch-move [data-move="right"] { grid-column: 3; grid-row: 2; }
+.touch-act {
+  position: absolute;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: 72px 72px;
+  gap: 10px;
+  pointer-events: none;
+}
+.touch-act button {
+  pointer-events: auto;
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+  font-size: 17px;
+}
+.touch-act [data-act="jump"],
+.touch-act [data-act="place"] { background: rgba(230, 177, 90, 0.55); }
+body.handheld #hotbar-wrap { bottom: 168px; }
+body.handheld #prompt { bottom: 268px; }
+body.phone .touch-move {
+  grid-template-columns: 56px 56px 56px;
+  grid-template-rows: 56px 56px 56px;
+}
+body.phone .touch-move button { font-size: 16px; }
+body.phone .touch-act { grid-template-columns: 62px 62px; gap: 8px; }
+body.phone .touch-act button { width: 62px; height: 62px; font-size: 15px; }
+body.handheld #hud { pointer-events: none; }
+body.handheld #hotbar,
+body.handheld #touch-pad button { pointer-events: auto; }
+

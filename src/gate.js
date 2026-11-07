@@ -18,7 +18,6 @@ export function createGate(root, hooks) {
   const homeEl = root.querySelector('#gate-home');
   const titleEl = root.querySelector('h1');
   let busy = false;
-  let prepared = false;
 
   function paint(ratio, label) {
     meter.hidden = false;
@@ -42,8 +41,7 @@ export function createGate(root, hooks) {
     busy = next;
     root.querySelectorAll('button').forEach((button) => {
       if (button.dataset.light) return;
-      const wait = button.id === 'gate-enter' && !prepared;
-      button.disabled = next || wait;
+      button.disabled = next;
     });
   }
 
@@ -88,7 +86,7 @@ export function createGate(root, hooks) {
     if (!busy) root.querySelector('#gate-palace-file').click();
   });
   root.querySelector('#gate-enter').addEventListener('click', () => {
-    if (busy || !prepared) return;
+    if (busy) return;
     finish();
   });
   root.querySelector('#gate-write').addEventListener('click', () => {
@@ -148,16 +146,10 @@ export function createGate(root, hooks) {
 
   renderWallets();
   onLang(renderWallets);
+  if (hooks.autoEnter) Promise.resolve().then(() => { if (!busy) finish(); });
   return {
-    markReady() {
-      if (prepared) return;
-      prepared = true;
-      if (!busy) {
-        const enter = root.querySelector('#gate-enter');
-        if (enter) enter.disabled = false;
-      }
-      if (hooks.autoEnter) finish();
-    },
     showHome,
+    paint,
+    idle,
   };
 }

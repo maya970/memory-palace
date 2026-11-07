@@ -361,8 +361,6 @@ export function createInventory(root, hooks) {
 
   root.querySelector('#inv-close').addEventListener('click', () => hooks.onClose());
 
-  renderTemplates();
-
   return {
     isOpen: () => !root.classList.contains('hidden'),
     open() {

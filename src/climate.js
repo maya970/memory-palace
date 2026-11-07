@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { loadGraphics } from './graphics.js';
+import { BLOCKS } from './blocks.js';
+import { currentGraphics } from './graphics.js';
 
 export const WEATHERS = {
   clear: {
@@ -74,14 +75,18 @@ function isGlassy(type) {
 }
 
 export function makeSurface(map, transparent, type) {
+  const prop = BLOCKS[type]?.solid === false;
   const shared = {
     map,
     transparent,
     alphaTest: transparent ? 0.15 : 0,
-    depthWrite: !transparent,
+    depthWrite: prop ? true : !transparent,
+    polygonOffset: prop,
+    polygonOffsetFactor: prop ? -2 : 0,
+    polygonOffsetUnits: prop ? -2 : 0,
     side: THREE.FrontSide,
   };
-  if (loadGraphics().light === 'simple') {
+  if (currentGraphics().light === 'simple') {
     return new THREE.MeshLambertMaterial(shared);
   }
   const mat = new THREE.MeshStandardMaterial({
@@ -171,7 +176,7 @@ function bakeSky(scene, weather, name) {
 }
 
 export function installEnvironment(renderer, scene) {
-  pmrem = new THREE.PMREMGenerator(renderer);
+  if (!pmrem) pmrem = new THREE.PMREMGenerator(renderer);
   bakeSky(scene, WEATHERS.dusk, 'dusk');
 }
 

@@ -4,7 +4,7 @@ import { BLOCKS } from './blocks.js';
 import { furnitureGeometry, surfaceLift } from './furniture.js';
 import { texturesFor } from './textures.js';
 import { buildBase } from './palace.js';
-import { loadGraphics } from './graphics.js';
+import { currentGraphics } from './graphics.js';
 import { makeSurface } from './climate.js';
 
 const MAX = 40000;
@@ -90,11 +90,10 @@ export class World {
     this.blocks = new Map(this.base);
     this.water?.clear();
     if (diff) this.applyDiff(diff);
-    this.rebuildMeshes();
   }
 
   meshLiquid() {
-    return loadGraphics().water === 'cube';
+    return currentGraphics().water === 'cube';
   }
 
   clear() {
@@ -158,7 +157,7 @@ export class World {
     return face && BLOCKS[type]?.shape === 'stairs' ? [x, y, z, type, face] : [x, y, z, type];
   }
 
-  rebuildMeshes() {
+  async rebuildMeshes(onProgress) {
     for (const group of this.groups.values()) {
       for (const mesh of group.meshes) {
         this.scene.remove(mesh);
@@ -168,29 +167,38 @@ export class World {
     this.groups.clear();
     this.index.clear();
     this.shelves.clear();
+    const jobs = [];
     for (const [key, type] of this.blocks) {
       if (type === 'water' && !this.meshLiquid()) continue;
-      const [x, y, z] = key.split(',').map(Number);
-      this.attach(key, type, x, y, z, true, 0);
+      jobs.push({ key, type, cover: false });
     }
-    this.water?.rebuild(this, loadGraphics());
-    for (const [key, type] of this.covers) {
-      const [x, y, z] = key.split(',').map(Number);
-      this.attach(`c:${key}`, type, x, y, z, true, surfaceLift(BLOCKS[this.blocks.get(key)]));
+    for (const [key, type] of this.covers) jobs.push({ key, type, cover: true });
+    const total = Math.max(1, jobs.length);
+    for (let i = 0; i < jobs.length; i += 1) {
+      const job = jobs[i];
+      const [x, y, z] = job.key.split(',').map(Number);
+      if (job.cover) this.attach(`c:${job.key}`, job.type, x, y, z, true, surfaceLift(BLOCKS[this.blocks.get(job.key)]));
+      else this.attach(job.key, job.type, x, y, z, true, 0);
+      if (onProgress && i % 480 === 0) {
+        onProgress(i / total);
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+      }
     }
+    this.water?.rebuild(this, currentGraphics());
     for (const group of this.groups.values()) {
       for (const mesh of group.meshes) {
         mesh.count = group.keys.length;
         mesh.instanceMatrix.needsUpdate = true;
       }
     }
+    onProgress?.(1);
   }
 
   ensureGroup(type) {
     let group = this.groups.get(type);
     if (group) return group;
     const tex = texturesFor(type);
-    const transparent = Boolean(BLOCKS[type]?.transparent || tex.transparent || BLOCKS[type]?.solid === false);
+    const transparent = Boolean(BLOCKS[type]?.transparent || tex.transparent);
     const meshes = [];
     const add = (geo, map) => {
       const mesh = new THREE.InstancedMesh(geo, lambert(map, transparent, type), MAX);
@@ -452,8 +460,10 @@ export class World {
 
     for (let i = 0; i < 48; i++) {
       const type = this.blocks.get(keyOf(x, y, z));
-      if (type && dist <= maxDist && (BLOCKS[type].solid !== false || BLOCKS[type].noteHost)) {
-        return { x, y, z, type, dist, nx: -faceX, ny: -faceY, nz: -faceZ };
+      if (type && dist <= maxDist && BLOCKS[type]?.liquid !== true) {
+        if (!(dist < 1e-6 && BLOCKS[type].solid === false)) {
+          return { x, y, z, type, dist, nx: -faceX, ny: -faceY, nz: -faceZ };
+        }
       }
       if (tMaxX < tMaxY && tMaxX < tMaxZ) {
         if (tMaxX > maxDist) return null;
