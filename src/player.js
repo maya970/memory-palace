@@ -4,22 +4,17 @@ const WALK = 4.6;
 const SNEAK = 1.55;
 const GRAVITY = 26;
 const JUMP = 8.2;
+const STEP_UP = 0.51;
 
 function overlaps(px, py, pz, world) {
-  const minX = Math.floor(px - RADIUS);
-  const maxX = Math.floor(px + RADIUS - 1e-4);
-  const minY = Math.floor(py + 1e-4);
-  const maxY = Math.floor(py + HEIGHT - 1e-4);
-  const minZ = Math.floor(pz - RADIUS);
-  const maxZ = Math.floor(pz + RADIUS - 1e-4);
-  for (let y = minY; y <= maxY; y++) {
-    for (let z = minZ; z <= maxZ; z++) {
-      for (let x = minX; x <= maxX; x++) {
-        if (world.isSolid(x, y, z)) return true;
-      }
-    }
-  }
-  return false;
+  return world.overlapsPlayer(px, py, pz, RADIUS, HEIGHT);
+}
+
+export function facingFromYaw(yaw) {
+  const ax = -Math.sin(yaw);
+  const az = -Math.cos(yaw);
+  if (Math.abs(ax) > Math.abs(az)) return ax > 0 ? 'e' : 'w';
+  return az > 0 ? 's' : 'n';
 }
 
 export function blockHitsPlayer(bx, by, bz, px, py, pz) {
@@ -113,8 +108,9 @@ export class Player {
       const nx = axis === 'x' ? next : this.x;
       const nz = axis === 'z' ? next : this.z;
       if (overlaps(nx, this.y, nz, world)) {
-        if (!sneak && this.grounded && !overlaps(nx, this.y + 1, nz, world)) {
-          this.y += 1;
+        const lifted = this.y + STEP_UP;
+        if (!sneak && this.grounded && !overlaps(nx, lifted, nz, world)) {
+          this.y = lifted;
           this[axis] = next;
           continue;
         }
@@ -147,8 +143,8 @@ export class Player {
         continue;
       }
       if (step < 0) {
-        const snap = Math.floor(next) + 1;
-        if (!overlaps(this.x, snap, this.z, world)) this.y = snap;
+        const snap = world.supportY(this.x, this.y, this.z, RADIUS);
+        if (snap != null && !overlaps(this.x, snap, this.z, world)) this.y = snap;
         this.grounded = true;
         this.vy = 0;
       } else {

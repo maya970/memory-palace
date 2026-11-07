@@ -47,8 +47,15 @@ export function flatten(g, x0, z0, x1, z1, y, fill, top) {
   }
 }
 
-function slab(g, x, y, z, tread, fill) {
-  g.set(x, y, z, tread);
+function stairOf(tread) {
+  if (tread === 'planks') return 'oak_stairs';
+  if (tread === 'stone_bricks') return 'stone_brick_stairs';
+  if (tread === 'quartz') return 'quartz_stairs';
+  return 'cobblestone_stairs';
+}
+
+function slab(g, x, y, z, tread, fill, face) {
+  g.set(x, y, z, face ? stairOf(tread) : tread, face);
   g.set(x, y - 1, z, fill);
   g.set(x, Math.max(-2, y - 2), z, fill);
 }
@@ -66,9 +73,11 @@ export function approach(g, doorX, doorZ, floorY, endZ, kind, tread, fill, book)
     if (x > 0) x -= 1;
     else if (x < 0) x += 1;
     const natural = kind === 'water' ? floorY : heightOf(x, z, kind);
+    const prevY = y;
     if (y > natural) y -= 1;
     else if (y < natural) y += 1;
-    for (let dx = -1; dx <= 1; dx += 1) slab(g, x + dx, y, z, tread, fill);
+    const face = y < prevY ? 'n' : y > prevY ? 's' : null;
+    for (let dx = -1; dx <= 1; dx += 1) slab(g, x + dx, y, z, tread, fill, face);
     if (book && guard % 8 === 0) {
       g.set(x + 3, y + 1, z, 'bookshelf');
       g.set(x + 3, y + 2, z, 'bookshelf');

@@ -6,7 +6,7 @@ import { createInventory } from './inventory.js';
 import { iconFor, loadTextures } from './textures.js';
 import { BUILD_MAX, BUILD_MIN, SPAWN, Y_MAX, Y_MIN } from './palace.js';
 import { World, Particles } from './world.js';
-import { Player, blockHitsPlayer } from './player.js';
+import { Player, blockHitsPlayer, facingFromYaw } from './player.js';
 import { hasSave, loadSave, writeSave } from './storage.js';
 import { sfx } from './audio.js';
 import {
@@ -642,7 +642,14 @@ function useAimed() {
   if (!held || !spot || !canPlaceOn(BLOCKS[held], BLOCKS[aimed.type], aimed.nx, aimed.ny, aimed.nz)) return;
   const ok = spot.cover
     ? world.setCover(spot.x, spot.y, spot.z, held)
-    : world.setBlock(spot.x, spot.y, spot.z, held, held === 'water' ? 'player' : 'world');
+    : world.setBlock(
+      spot.x,
+      spot.y,
+      spot.z,
+      held,
+      held === 'water' ? 'player' : 'world',
+      BLOCKS[held]?.shape === 'stairs' ? facingFromYaw(player.yaw) : null,
+    );
   if (!ok) {
     toast('这种方块已经放得太多了');
     return;
@@ -1001,10 +1008,9 @@ function applyMood(indoor) {
     sunLight.color.set(0xfff2d8);
     sunLight.intensity = 1.32;
     sun.visible = true;
-    atmosphere.setWeather({ rain: 0, flakes: 0, bloom: 0.2, shafts: 0, wet: 0 }, false);
+    atmosphere.setWeather({ rain: 0, flakes: 0, bloom: 0.2, shafts: 0, sunColor: 0xfff2d8 }, false);
     return;
   }
-  scene.environmentIntensity = 0.95;
   setClimate(gfx.weather, { scene, hemi, sunLight, sun, atmosphere }, Boolean(indoor));
 }
 

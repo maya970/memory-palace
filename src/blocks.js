@@ -21,7 +21,14 @@ export const WOOLS = [
 
 export const EXTRA_BLOCKS = [
   { id: 'cobblestone', name: '圆石', color: '#8a8a8a', group: '建筑', look: 'rubble', colors: ['#7a7a7a', '#8e8e8e', '#6a6a6a', '#9a9a9a'] },
+  { id: 'cobblestone_slab', name: '圆石台阶', color: '#8a8a8a', group: '建筑', look: 'rubble', colors: ['#7a7a7a', '#8e8e8e', '#6a6a6a', '#9a9a9a'], shape: 'slab' },
+  { id: 'cobblestone_stairs', name: '圆石楼梯', color: '#8a8a8a', group: '建筑', look: 'rubble', colors: ['#7a7a7a', '#8e8e8e', '#6a6a6a', '#9a9a9a'], shape: 'stairs' },
   { id: 'stone_bricks', name: '石砖', color: '#7d7d7d', group: '建筑', look: 'bricks', colors: ['#8a8a8a', '#767676', '#6a6a6a'], mortar: '#b5b5b5' },
+  { id: 'stone_brick_slab', name: '石砖台阶', color: '#7d7d7d', group: '建筑', look: 'bricks', colors: ['#8a8a8a', '#767676', '#6a6a6a'], mortar: '#b5b5b5', shape: 'slab' },
+  { id: 'stone_brick_stairs', name: '石砖楼梯', color: '#7d7d7d', group: '建筑', look: 'bricks', colors: ['#8a8a8a', '#767676', '#6a6a6a'], mortar: '#b5b5b5', shape: 'stairs' },
+  { id: 'oak_slab', name: '橡木台阶', color: '#b5884a', group: '木头', look: 'planks', colors: ['#c49a58', '#b5884a', '#9a7038', '#d4b06a'], shape: 'slab' },
+  { id: 'oak_stairs', name: '橡木楼梯', color: '#b5884a', group: '木头', look: 'planks', colors: ['#c49a58', '#b5884a', '#9a7038', '#d4b06a'], shape: 'stairs' },
+  { id: 'quartz_stairs', name: '石英楼梯', color: '#ece8e2', group: '建筑', look: 'smooth', colors: ['#f7f4ef', '#e6e1da', '#faf8f5'], shape: 'stairs' },
   { id: 'sand', name: '沙子', color: '#e0d2a0', group: '建筑', look: 'noise', colors: ['#e6d7a8', '#d8c48a', '#efe3b8', '#c9b57a'] },
   { id: 'sandstone', name: '砂岩', color: '#e2d4a4', group: '建筑', look: 'bands', colors: ['#eadcb0', '#dcc88a', '#f0e4bc', '#cbb878'] },
   { id: 'quartz', name: '石英块', color: '#ece8e2', group: '建筑', look: 'smooth', colors: ['#f7f4ef', '#e6e1da', '#faf8f5'] },
@@ -86,8 +93,10 @@ for (const wool of WOOLS) {
 }
 
 export const TEMPLATES = [
-  'grass', 'dirt', 'stone', 'cobblestone', 'stone_bricks', 'sand', 'sandstone',
-  'bookshelf', 'bricks', 'quartz', 'deepslate', 'blackstone', 'obsidian',
+  'grass', 'dirt', 'stone', 'cobblestone', 'cobblestone_slab', 'cobblestone_stairs',
+  'stone_bricks', 'stone_brick_slab', 'stone_brick_stairs', 'oak_slab', 'oak_stairs',
+  'sand', 'sandstone',
+  'bookshelf', 'bricks', 'quartz', 'quartz_stairs', 'deepslate', 'blackstone', 'obsidian',
   'snow', 'ice', 'water', 'oak_leaves', 'moss', 'clay', 'end_stone', 'netherrack',
   'glowstone', 'prismarine', 'glass',
   'planks', 'log', 'spruce_planks', 'spruce_log', 'birch_planks', 'birch_log',

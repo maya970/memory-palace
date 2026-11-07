@@ -39,7 +39,7 @@ export function applyLights(renderer, sunLight, meshes, settings) {
   renderer.toneMapping = rich ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
   renderer.toneMappingExposure = rich ? 1.12 : 1;
   sunLight.castShadow = rich;
-  sunLight.intensity = rich ? 2.1 : 1.32;
+  if (!rich) sunLight.intensity = 1.32;
   if (rich) {
     sunLight.shadow.mapSize.set(2048, 2048);
     sunLight.shadow.bias = -0.00035;

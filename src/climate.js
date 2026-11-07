@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { loadGraphics } from './graphics.js';
 
 export const WEATHERS = {
@@ -10,33 +9,33 @@ export const WEATHERS = {
     indoorSun: 0.08, indoorHemi: 0.55, indoorColor: 0xffc27a,
   },
   rain: {
-    label: '雨', wet: 0.84, snow: 0, puddle: 0.92, rain: 1, flakes: 0,
+    label: '雨', wet: 0.84, snow: 0, puddle: 0.78, rain: 1, flakes: 0,
     fog: 0.02, fogColor: 0x6d7682, sky: 0x5c6570,
-    sun: 0.5, hemi: 0.34, sunColor: 0xc8d0d8, bloom: 0.2, shafts: 0.12,
+    sun: 0.5, hemi: 0.34, sunColor: 0xc8d0d8, bloom: 0.16, shafts: 0.12,
     indoorSun: 0.05, indoorHemi: 0.62, indoorColor: 0xffb56a,
   },
   storm: {
-    label: '雷暴', wet: 1, snow: 0, puddle: 1, rain: 1.7, flakes: 0,
+    label: '雷暴', wet: 1, snow: 0, puddle: 0.95, rain: 1.7, flakes: 0,
     fog: 0.032, fogColor: 0x2e343c, sky: 0x252a32,
-    sun: 0.18, hemi: 0.2, sunColor: 0x8899aa, bloom: 0.16, shafts: 0.05,
+    sun: 0.18, hemi: 0.2, sunColor: 0x8899aa, bloom: 0.12, shafts: 0.04,
     indoorSun: 0.04, indoorHemi: 0.7, indoorColor: 0xff9a4a,
   },
   mist: {
-    label: '雾', wet: 0.3, snow: 0, puddle: 0.22, rain: 0, flakes: 0,
+    label: '雾', wet: 0.28, snow: 0, puddle: 0.12, rain: 0, flakes: 0,
     fog: 0.046, fogColor: 0xc4b8a6, sky: 0xccc3b4,
-    sun: 0.85, hemi: 0.48, sunColor: 0xffe6c8, bloom: 0.34, shafts: 0.5,
+    sun: 0.72, hemi: 0.46, sunColor: 0xe8dcc8, bloom: 0.22, shafts: 0.28,
     indoorSun: 0.07, indoorHemi: 0.58, indoorColor: 0xffc090,
   },
   snow: {
-    label: '雪', wet: 0.1, snow: 0.94, puddle: 0, rain: 0, flakes: 1,
+    label: '雪', wet: 0, snow: 0.94, puddle: 0, rain: 0, flakes: 1,
     fog: 0.016, fogColor: 0xd5e2ee, sky: 0xdbe6f2,
-    sun: 1.3, hemi: 0.64, sunColor: 0xf7fbff, bloom: 0.28, shafts: 0.35,
+    sun: 1.3, hemi: 0.64, sunColor: 0xf7fbff, bloom: 0.22, shafts: 0.32,
     indoorSun: 0.08, indoorHemi: 0.6, indoorColor: 0xffd7a8,
   },
   dusk: {
-    label: '黄昏', wet: 0.16, snow: 0, puddle: 0.12, rain: 0, flakes: 0,
+    label: '黄昏', wet: 0, snow: 0, puddle: 0, rain: 0, flakes: 0,
     fog: 0.014, fogColor: 0xb08a62, sky: 0xb08a62,
-    sun: 2.05, hemi: 0.36, sunColor: 0xffc17a, bloom: 0.5, shafts: 1,
+    sun: 2.05, hemi: 0.36, sunColor: 0xffc17a, bloom: 0.48, shafts: 1,
     indoorSun: 0.06, indoorHemi: 0.52, indoorColor: 0xffb060,
   },
 };
@@ -46,6 +45,38 @@ export const climate = {
   uSnow: { value: 0 },
   uPuddle: { value: 0 },
 };
+
+let pmrem;
+let envTarget;
+
+const SKY_VERT = `
+varying vec3 vDir;
+void main() {
+  vDir = position;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`;
+
+const SKY_FRAG = `
+varying vec3 vDir;
+uniform vec3 zenith;
+uniform vec3 horizon;
+uniform vec3 ground;
+void main() {
+  vec3 n = normalize(vDir);
+  vec3 col = mix(horizon, zenith, smoothstep(0.0, 0.62, n.y));
+  col = mix(ground, col, smoothstep(-0.4, 0.06, n.y));
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+function isMetal(type) {
+  return type === 'gold' || type === 'iron' || type === 'copper';
+}
+
+function isGlassy(type) {
+  return type === 'water' || type === 'ice' || type === 'glass' || type === 'diamond';
+}
 
 export function makeSurface(map, transparent, type) {
   const shared = {
@@ -58,12 +89,11 @@ export function makeSurface(map, transparent, type) {
   if (loadGraphics().light === 'simple') {
     return new THREE.MeshLambertMaterial(shared);
   }
-  const shiny = type === 'water' || type === 'ice' || type === 'glass' || type === 'gold' || type === 'iron' || type === 'diamond';
   const mat = new THREE.MeshStandardMaterial({
     ...shared,
-    roughness: shiny ? 0.18 : type === 'grass' || type === 'sand' || type === 'snow' ? 0.92 : 0.7,
-    metalness: type === 'gold' || type === 'iron' ? 0.65 : 0.04,
-    envMapIntensity: 1,
+    roughness: isGlassy(type) ? 0.12 : type === 'grass' || type === 'sand' || type === 'snow' ? 0.94 : 0.72,
+    metalness: isMetal(type) ? 0.78 : 0,
+    envMapIntensity: isGlassy(type) || isMetal(type) ? 1.15 : 0.9,
     emissive: type === 'glowstone' ? new THREE.Color(0xffcc66) : 0x000000,
     emissiveIntensity: type === 'glowstone' ? 1.4 : 0,
   });
@@ -84,27 +114,74 @@ export function makeSurface(map, transparent, type) {
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vWx;\nvarying vec3 vWn;\nuniform float uWet;\nuniform float uSnow;\nuniform float uPuddle;')
       .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
-        float up = smoothstep(0.22, 0.86, vWn.y);
-        float wet = uWet * (0.35 + 0.65 * up);
-        diffuseColor.rgb *= 1.0 - wet * 0.55;
+        float up = smoothstep(0.18, 0.88, vWn.y);
+        float wet = uWet * (0.28 + 0.72 * up);
+        float puddle = uPuddle * up * smoothstep(0.12, 0.72, 0.5 + 0.5 * sin(vWx.x * 1.7) * sin(vWx.z * 1.4));
+        diffuseColor.rgb *= 1.0 - wet * 0.28;
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.96, 0.99), uSnow * up);
-        float puddle = uPuddle * up * smoothstep(0.15, 0.7, 0.5 + 0.5 * sin(vWx.x * 1.7) * sin(vWx.z * 1.4));
-        roughnessFactor = mix(roughnessFactor, 0.05, max(wet * up, puddle));
-        metalnessFactor = mix(metalnessFactor, 0.28, puddle * 0.8);`);
+        roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.22, wet);
+        roughnessFactor = mix(roughnessFactor, 0.06, puddle);`);
   };
   mat.customProgramCacheKey = () => `climate-${type}`;
   return mat;
 }
 
+function bakeSky(scene, weather, indoor) {
+  if (!pmrem) return;
+  const wash = Math.min(1, weather.fog * 38);
+  const zenith = new THREE.Color(indoor ? 0x2a1a12 : weather.sky);
+  const horizon = new THREE.Color(indoor ? 0x1a120c : weather.fogColor);
+  if (!indoor) zenith.lerp(horizon, wash * 0.55);
+  const ground = new THREE.Color(indoor ? 0x1a120c : 0x2a221c);
+  const probe = new THREE.Scene();
+  const sky = new THREE.Mesh(
+    new THREE.SphereGeometry(12, 24, 16),
+    new THREE.ShaderMaterial({
+      uniforms: {
+        zenith: { value: zenith },
+        horizon: { value: horizon },
+        ground: { value: ground },
+      },
+      vertexShader: SKY_VERT,
+      fragmentShader: SKY_FRAG,
+      side: THREE.BackSide,
+    }),
+  );
+  probe.add(sky);
+  const sunPower = indoor ? 0 : weather.sun * (1 - wash * 0.82);
+  let disc;
+  if (sunPower > 0.04) {
+    disc = new THREE.Mesh(
+      new THREE.SphereGeometry(0.35 + weather.shafts * 0.55, 16, 12),
+      new THREE.MeshBasicMaterial({ color: new THREE.Color(weather.sunColor), fog: false }),
+    );
+    disc.position.set(5.4, 3.6, 3.1).normalize().multiplyScalar(8.2);
+    disc.scale.setScalar(0.7 + sunPower * 0.35);
+    probe.add(disc);
+  }
+  if (envTarget) {
+    envTarget.dispose();
+    envTarget = null;
+  }
+  envTarget = pmrem.fromScene(probe, 0.04);
+  scene.environment = envTarget.texture;
+  scene.environmentIntensity = indoor ? 0.32 : 1;
+  sky.geometry.dispose();
+  sky.material.dispose();
+  if (disc) {
+    disc.geometry.dispose();
+    disc.material.dispose();
+  }
+}
+
 export function installEnvironment(renderer, scene) {
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-  scene.environmentIntensity = 0.95;
+  pmrem = new THREE.PMREMGenerator(renderer);
+  bakeSky(scene, WEATHERS.dusk, false);
 }
 
 export function setClimate(name, ctx, indoor) {
   const w = WEATHERS[name] || WEATHERS.clear;
-  climate.uWet.value = indoor ? w.wet * 0.15 : w.wet;
+  climate.uWet.value = indoor ? 0 : w.wet;
   climate.uSnow.value = indoor ? 0 : w.snow;
   climate.uPuddle.value = indoor ? 0 : w.puddle;
   ctx.scene.background = new THREE.Color(indoor ? 0x1a120c : w.sky);
@@ -116,6 +193,7 @@ export function setClimate(name, ctx, indoor) {
   ctx.sunLight.intensity = indoor ? w.indoorSun : w.sun;
   ctx.sun.material.color.set(w.sunColor);
   ctx.sun.visible = !indoor;
+  bakeSky(ctx.scene, w, indoor);
   ctx.atmosphere?.setWeather(w, indoor);
   return w;
 }

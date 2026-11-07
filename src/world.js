@@ -35,6 +35,29 @@ function capGeometry(y) {
   return plane;
 }
 
+function partBox(x, y, z, w, h, d) {
+  const geo = new THREE.BoxGeometry(w, h, d);
+  geo.translate(x + w / 2 - 0.5, y + h / 2 - 0.5, z + d / 2 - 0.5);
+  return geo;
+}
+
+function slabGeometry() {
+  return partBox(0, 0, 0, 1, 0.5, 1);
+}
+
+function stairsGeometry() {
+  return mergeGeometries([
+    partBox(0, 0, 0, 1, 0.5, 1),
+    partBox(0, 0.5, 0.5, 1, 0.5, 0.5),
+  ]);
+}
+
+const FACE_YAW = { n: Math.PI, s: 0, e: -Math.PI / 2, w: Math.PI / 2 };
+
+function normalizeFace(face) {
+  return FACE_YAW[face] != null ? face : 's';
+}
+
 function lambert(map, transparent, type) {
   return makeSurface(map, transparent, type);
 }
@@ -49,11 +72,14 @@ export class World {
     this.groups = new Map();
     this.shelves = new Set();
     this.covers = new Map();
+    this.faces = new Map();
     this.dummy = new THREE.Object3D();
     this.wallGeo = wallGeometry();
     this.topGeo = capGeometry(0.5);
     this.bottomGeo = capGeometry(-0.5);
     this.boxGeo = new THREE.BoxGeometry(1, 1, 1);
+    this.slabGeo = slabGeometry();
+    this.stairsGeo = stairsGeometry();
   }
 
   init(diff) {
@@ -82,15 +108,18 @@ export class World {
     this.index.clear();
     this.shelves.clear();
     this.covers.clear();
+    this.faces.clear();
     this.blocks.clear();
   }
 
   applyDiff(diff) {
     for (const key of diff.removed || []) this.blocks.delete(key);
     for (const item of diff.placed || []) {
-      const [x, y, z, type] = item;
+      const [x, y, z, type, face] = item;
       if (!BLOCKS[type]) continue;
-      this.blocks.set(keyOf(x, y, z), type);
+      const key = keyOf(x, y, z);
+      this.blocks.set(key, type);
+      if (BLOCKS[type]?.shape === 'stairs' && face) this.faces.set(key, normalizeFace(face));
     }
     for (const item of diff.covers || []) {
       const [x, y, z, type] = item;
@@ -107,14 +136,14 @@ export class World {
       if (now == null) removed.push(key);
       else if (now !== type) {
         const [x, y, z] = key.split(',').map(Number);
-        placed.push([x, y, z, now]);
+        placed.push(this.placedRow(x, y, z, now));
       }
     }
     for (const [key, type] of this.blocks) {
       if (this.base.has(key)) continue;
       if (this.water?.flowed.has(key)) continue;
       const [x, y, z] = key.split(',').map(Number);
-      placed.push([x, y, z, type]);
+      placed.push(this.placedRow(x, y, z, type));
     }
     const covers = [];
     for (const [key, type] of this.covers) {
@@ -122,6 +151,11 @@ export class World {
       covers.push([x, y, z, type]);
     }
     return { removed, placed, covers };
+  }
+
+  placedRow(x, y, z, type) {
+    const face = this.faces.get(keyOf(x, y, z));
+    return face && BLOCKS[type]?.shape === 'stairs' ? [x, y, z, type, face] : [x, y, z, type];
   }
 
   rebuildMeshes() {
@@ -167,6 +201,8 @@ export class World {
     };
     const shaped = furnitureGeometry(type);
     if (shaped) add(shaped, tex.side);
+    else if (BLOCKS[type]?.shape === 'slab') add(this.slabGeo, tex.side);
+    else if (BLOCKS[type]?.shape === 'stairs') add(this.stairsGeo, tex.side);
     else if (tex.uniform) add(this.boxGeo, tex.side);
     else {
       add(this.wallGeo, tex.side);
@@ -191,7 +227,8 @@ export class World {
 
   write(group, index, x, y, z, batched, lift = 0) {
     this.dummy.position.set(x + 0.5, y + 0.5 + lift, z + 0.5);
-    this.dummy.rotation.set(0, 0, 0);
+    const face = this.faces.get(keyOf(x, y, z));
+    this.dummy.rotation.set(0, FACE_YAW[face] || 0, 0);
     this.dummy.scale.set(1, 1, 1);
     this.dummy.updateMatrix();
     for (const mesh of group.meshes) {
@@ -222,6 +259,85 @@ export class World {
     return BLOCKS[type]?.solid !== false;
   }
 
+  hitboxes(x, y, z, type) {
+    const shape = BLOCKS[type]?.shape;
+    if (shape === 'slab') {
+      return [{ x0: x, y0: y, z0: z, x1: x + 1, y1: y + 0.5, z1: z + 1 }];
+    }
+    if (shape === 'stairs') {
+      const face = this.faces.get(keyOf(x, y, z)) || 's';
+      const high = {
+        s: { x0: x, y0: y + 0.5, z0: z + 0.5, x1: x + 1, y1: y + 1, z1: z + 1 },
+        n: { x0: x, y0: y + 0.5, z0: z, x1: x + 1, y1: y + 1, z1: z + 0.5 },
+        e: { x0: x + 0.5, y0: y + 0.5, z0: z, x1: x + 1, y1: y + 1, z1: z + 1 },
+        w: { x0: x, y0: y + 0.5, z0: z, x1: x + 0.5, y1: y + 1, z1: z + 1 },
+      }[face];
+      return [
+        { x0: x, y0: y, z0: z, x1: x + 1, y1: y + 0.5, z1: z + 1 },
+        high,
+      ];
+    }
+    return [{ x0: x, y0: y, z0: z, x1: x + 1, y1: y + 1, z1: z + 1 }];
+  }
+
+  overlapsPlayer(px, py, pz, radius, height) {
+    const minX = Math.floor(px - radius);
+    const maxX = Math.floor(px + radius - 1e-4);
+    const minY = Math.floor(py + 1e-4);
+    const maxY = Math.floor(py + height - 1e-4);
+    const minZ = Math.floor(pz - radius);
+    const maxZ = Math.floor(pz + radius - 1e-4);
+    const ax0 = px - radius;
+    const ax1 = px + radius;
+    const ay0 = py;
+    const ay1 = py + height;
+    const az0 = pz - radius;
+    const az1 = pz + radius;
+    for (let y = minY; y <= maxY; y += 1) {
+      for (let z = minZ; z <= maxZ; z += 1) {
+        for (let x = minX; x <= maxX; x += 1) {
+          const type = this.get(x, y, z);
+          if (!type || BLOCKS[type]?.solid === false) continue;
+          for (const box of this.hitboxes(x, y, z, type)) {
+            if (ax1 <= box.x0 || ax0 >= box.x1) continue;
+            if (ay1 <= box.y0 || ay0 >= box.y1) continue;
+            if (az1 <= box.z0 || az0 >= box.z1) continue;
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  supportY(px, py, pz, radius) {
+    let best = -Infinity;
+    const minX = Math.floor(px - radius);
+    const maxX = Math.floor(px + radius - 1e-4);
+    const minY = Math.floor(py - 1.2);
+    const maxY = Math.floor(py + 0.05);
+    const minZ = Math.floor(pz - radius);
+    const maxZ = Math.floor(pz + radius - 1e-4);
+    const ax0 = px - radius;
+    const ax1 = px + radius;
+    const az0 = pz - radius;
+    const az1 = pz + radius;
+    for (let y = minY; y <= maxY; y += 1) {
+      for (let z = minZ; z <= maxZ; z += 1) {
+        for (let x = minX; x <= maxX; x += 1) {
+          const type = this.get(x, y, z);
+          if (!type || BLOCKS[type]?.solid === false) continue;
+          for (const box of this.hitboxes(x, y, z, type)) {
+            if (ax1 <= box.x0 || ax0 >= box.x1) continue;
+            if (az1 <= box.z0 || az0 >= box.z1) continue;
+            if (box.y1 <= py + 0.02 && box.y1 > best) best = box.y1;
+          }
+        }
+      }
+    }
+    return best === -Infinity ? null : best;
+  }
+
   isRoofed(x, y, z) {
     const gx = Math.floor(x);
     const gy = Math.floor(y + 0.2);
@@ -233,12 +349,13 @@ export class World {
     return false;
   }
 
-  setBlock(x, y, z, type, origin = 'world') {
+  setBlock(x, y, z, type, origin = 'world', face = null) {
     const key = keyOf(x, y, z);
     const prev = this.blocks.get(key) || null;
-    if (prev === type) return true;
+    if (prev === type && (face == null || this.faces.get(key) === face)) return true;
     if (prev === 'water') this.water?.forget(x, y, z);
     if (prev) this.detach(key);
+    this.faces.delete(key);
     if (!type || !BLOCKS[type]?.furnish) {
       if (this.covers.has(key)) this.setCover(x, y, z, null);
     }
@@ -247,6 +364,7 @@ export class World {
       return true;
     }
     this.blocks.set(key, type);
+    if (BLOCKS[type]?.shape === 'stairs') this.faces.set(key, normalizeFace(face));
     if (type === 'water') {
       if (origin === 'player') this.water?.markSource(x, y, z);
       if (origin === 'flow') this.water?.flowed.add(key);
@@ -255,6 +373,7 @@ export class World {
     }
     if (!this.attach(key, type, x, y, z, false, 0)) {
       this.blocks.delete(key);
+      this.faces.delete(key);
       return false;
     }
     return true;

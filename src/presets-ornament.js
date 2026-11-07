@@ -3,11 +3,18 @@ import { palace } from './presets-lib.js';
 export function grid() {
   const cells = new Map();
   const covers = [];
+  const faces = new Map();
   const g = {
-    set(x, y, z, type) {
+    set(x, y, z, type, face) {
       const key = `${x},${y},${z}`;
-      if (!type) cells.delete(key);
-      else cells.set(key, type);
+      if (!type) {
+        cells.delete(key);
+        faces.delete(key);
+        return;
+      }
+      cells.set(key, type);
+      if (face) faces.set(key, face);
+      else faces.delete(key);
     },
     get(x, y, z) {
       return cells.get(`${x},${y},${z}`) || null;
@@ -32,7 +39,8 @@ export function grid() {
       const placed = [];
       for (const [key, type] of cells) {
         const [x, y, z] = key.split(',').map(Number);
-        placed.push([x, y, z, type]);
+        const face = faces.get(key);
+        placed.push(face ? [x, y, z, type, face] : [x, y, z, type]);
       }
       placed.covers = covers;
       return placed;

@@ -11,7 +11,7 @@ const GRADE = {
     sunPos: { value: new THREE.Vector2(0.7, 0.72) },
     sunStrength: { value: 1 },
     indoor: { value: 0 },
-    wetLook: { value: 0 },
+    sunTint: { value: new THREE.Color(0xffe0b0) },
   },
   vertexShader: `
     varying vec2 vUv;
@@ -25,7 +25,7 @@ const GRADE = {
     uniform vec2 sunPos;
     uniform float sunStrength;
     uniform float indoor;
-    uniform float wetLook;
+    uniform vec3 sunTint;
     varying vec2 vUv;
     void main() {
       vec4 src = texture2D(tDiffuse, vUv);
@@ -39,14 +39,13 @@ const GRADE = {
         shafts += smoothstep(0.58, 0.95, lum);
       }
       shafts = (shafts / 16.0) * sunStrength * (1.0 - indoor);
-      vec3 haze = vec3(1.0, 0.84, 0.62) * shafts * 0.55;
-      vec3 outdoor = src.rgb * vec3(1.05, 0.98, 0.9);
-      vec3 inside = src.rgb * vec3(1.18, 0.92, 0.72) + vec3(0.04, 0.02, 0.0);
+      vec3 haze = sunTint * shafts * 0.55;
+      vec3 outdoor = src.rgb;
+      vec3 inside = src.rgb * vec3(1.12, 0.94, 0.78) + vec3(0.03, 0.015, 0.0);
       vec3 color = mix(outdoor, inside, indoor);
       color += haze;
-      color = mix(color, color * vec3(0.82, 0.88, 0.95), wetLook * 0.35 * (1.0 - indoor));
       float vig = smoothstep(1.15, 0.28, distance(vUv, vec2(0.5)));
-      color *= mix(0.7, 1.0, vig);
+      color *= mix(0.78, 1.0, vig);
       gl_FragColor = vec4(color, src.a);
     }
   `,
@@ -75,7 +74,7 @@ export class Atmosphere {
     this.weather = weather;
     this.indoor = Boolean(indoor);
     this.bloom.strength = indoor ? 0.38 : weather.bloom;
-    this.grade.uniforms.wetLook.value = weather.wet;
+    if (weather.sunColor != null) this.grade.uniforms.sunTint.value.set(weather.sunColor);
   }
 
   resize(width, height) {
