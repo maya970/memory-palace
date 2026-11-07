@@ -1,7 +1,7 @@
 /**
  * 书架上文稿编辑器。shelf 写在格子里；compose 是先写一篇；visit 只读参观。
  */
-import { sanitizeHtml, tableHtml, tsvToTable, VOCAB_TEMPLATE, isEmptyNote } from './notes.js';
+import { htmlFromDocx, sanitizeHtml, tableHtml, tsvToTable, VOCAB_TEMPLATE, isEmptyNote } from './notes.js';
 
 function closest(node, selector) {
   const el = node?.nodeType === 1 ? node : node?.parentElement;
@@ -283,12 +283,10 @@ export function createEditor(root, hooks) {
     if (!file) return;
     status.textContent = '正在读 Word…';
     try {
-      const mod = await import('mammoth');
-      const mammoth = mod.default ?? mod;
-      const arrayBuffer = await file.arrayBuffer();
-      const result = await mammoth.convertToHtml({ arrayBuffer });
-      insertHtml(sanitizeHtml(result.value));
-      hooks.onToast(result.messages?.length ? 'Word 已放入，有少量格式被略过' : 'Word 已放进这格书架');
+      const result = await htmlFromDocx(file);
+      insertHtml(result.html);
+      status.textContent = result.skipped ? 'Word 已放入，有少量格式被略过' : 'Word 已放进这格书架';
+      hooks.onToast(status.textContent);
     } catch {
       status.textContent = '没能读开这个文件';
       hooks.onToast('只接受 .docx');

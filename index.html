@@ -223,12 +223,12 @@
         <section>
           <h3>位点</h3>
           <p>对准书架、摊开的笔记或一叠信，按 F 或右键打开。桌子、床、衣柜只是家具，要把笔记本放到桌面上再打开。按住 Shift 再右键，才会把手里的东西贴到表面上。</p>
-          <p>桌布床单仍铺在桌面或床上。笔记、笔、信、茶杯可以贴在地面、墙面、床沿、柜侧，不限于桌面。拆掉写过字的那一格，笔记会一起进背包。随机存放或刚放下的方块会竖起一道信标光柱，点左下角或按 V 就能走过去。</p>
+          <p>桌布床单仍铺在桌面或床上。笔记、笔、信、茶杯可以贴在地面、墙面、床沿、柜侧，不限于桌面。拆掉写过字的那一格，笔记会一起进背包。要找某一格时，打开 Esc → 全部文档，在文稿或「历史记录」里点「标亮」，才会竖光柱；点左下角或按 V 走过去。</p>
         </section>
         <section>
           <h3>这本笔记</h3>
           <p>线索词是你脑子里的画面，标题是这格在记什么，正文像 Word 一样写。可以加粗、标题、列表、引用，也可以插入表格，或从 Excel 直接粘贴。</p>
-          <p>「导入 Word」接受 .docx。「导出 Word」会下载一份能用 Word 打开的文稿。</p>
+          <p>书架工具栏最左边就是「导入 Word」「导出 Word」。Esc 的全部文档里也可以导入、导出 Word。接受 .docx，导出会下载一份 Word 能打开的文稿。</p>
         </section>
         <section>
           <h3>存储</h3>
@@ -297,10 +297,13 @@
       <div class="segment">
         <button id="docs-local" class="on" type="button">本地</button>
         <button id="docs-chain" type="button">链上</button>
+        <button id="docs-history" type="button">历史记录</button>
       </div>
       <div class="doc-tools">
         <input id="docs-search" type="search" placeholder="搜索标题、线索词、正文" />
         <p id="docs-count"></p>
+        <button id="docs-word-new" type="button">导入 Word</button>
+        <input id="docs-docx-new" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden />
       </div>
       <div class="meter" hidden><div class="meter-fill"></div></div>
       <p class="apple-status" data-status></p>
@@ -313,14 +316,20 @@
               <th><button type="button" data-sort="title">标题<i></i></button></th>
               <th><button type="button" data-sort="where">位置<i></i></button></th>
               <th><button type="button" data-sort="store">存放<i></i></button></th>
+              <th>标亮</th>
             </tr>
           </thead>
           <tbody id="docs-body"></tbody>
         </table>
       </div>
+      <div id="docs-history-list" class="docs-history hidden"></div>
       <article id="docs-read" class="doc-read hidden">
         <button id="docs-back" type="button">返回表格</button>
         <button id="docs-open-palace" type="button" class="hidden">在宫殿里打开</button>
+        <button id="docs-word-export" type="button">导出 Word</button>
+        <button id="docs-word-import" type="button">导入 Word</button>
+        <button id="docs-beacon" type="button" class="hidden">标亮这一格</button>
+        <input id="docs-docx-read" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden />
         <p id="docs-kicker" class="apple-kicker"></p>
         <h3 id="docs-title"></h3>
         <p id="docs-where"></p>
@@ -372,6 +381,9 @@
         </label>
       </div>
       <div id="toolbar">
+        <button data-cmd="import" type="button" class="word-cmd">导入 Word</button>
+        <button data-cmd="export" type="button" class="word-cmd">导出 Word</button>
+        <span class="sep"></span>
         <button data-cmd="undo" type="button">撤销</button>
         <button data-cmd="redo" type="button">重做</button>
         <span class="sep"></span>
@@ -401,9 +413,6 @@
         <button data-cmd="template" type="button">词表</button>
         <button data-cmd="hr" type="button">分隔</button>
         <button data-cmd="clear" type="button">清格式</button>
-        <span class="sep"></span>
-        <button data-cmd="import" type="button">导入 Word</button>
-        <button data-cmd="export" type="button">导出 Word</button>
         <input id="docx-input" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden />
       </div>
       <div id="table-pop" class="table-pop hidden">

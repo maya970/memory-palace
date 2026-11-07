@@ -384,6 +384,11 @@ body.account-pending #compass { top: 58px; }
   font-size: 13px;
   box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.12);
 }
+#toolbar .word-cmd {
+  background: #e6b15a;
+  color: #2a1a0c;
+  font-weight: 700;
+}
 
 .sep { width: 1px; height: 18px; background: rgba(255, 236, 214, 0.35); margin: 0 2px; }
 .color-chip { display: inline-flex; align-items: center; gap: 4px; }
@@ -1124,6 +1129,13 @@ body.account-pending #compass { top: 58px; }
 }
 
 .doc-table th button.on { color: #fff; }
+.doc-table td button {
+  background: #e6b15a;
+  color: #2a1a0c;
+  border: 0;
+  border-radius: 980px;
+  padding: 4px 10px;
+}
 
 .doc-table td {
   padding: 11px 10px;
@@ -1134,6 +1146,29 @@ body.account-pending #compass { top: 58px; }
 .doc-table tr[data-index]:hover td { background: rgba(255, 255, 255, 0.05); }
 
 .doc-read { margin-top: 8px; }
+.doc-read > button { margin: 0 8px 10px 0; }
+.docs-history { display: grid; gap: 8px; margin-top: 8px; }
+.docs-history.hidden { display: none; }
+.history-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f5f5f7;
+}
+.history-row strong { display: block; }
+.history-row span { display: block; margin-top: 4px; color: rgba(245, 245, 247, 0.55); font-size: 13px; }
+.history-row button {
+  flex: none;
+  background: #e6b15a;
+  color: #2a1a0c;
+  border: 0;
+  border-radius: 980px;
+  padding: 8px 12px;
+}
 .doc-body {
   margin-top: 12px;
   padding: 16px;

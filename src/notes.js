@@ -58,6 +58,31 @@ function cleanChildren(node) {
   return out;
 }
 
+export async function htmlFromDocx(file) {
+  const mod = await import('mammoth');
+  const mammoth = mod.default ?? mod;
+  const result = await mammoth.convertToHtml({ arrayBuffer: await file.arrayBuffer() });
+  return {
+    html: sanitizeHtml(result.value),
+    skipped: Boolean(result.messages?.length),
+  };
+}
+
+export function wordFile(note) {
+  const name = (note?.title || '笔记').replace(/[\\/:*?"<>|]/g, '').slice(0, 40) || '笔记';
+  const heading = String(note?.title || '未命名').replace(/[&<>]/g, (ch) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;',
+  }[ch]));
+  const cue = note?.cue
+    ? `<p><b>线索：</b>${String(note.cue).replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch]))}</p>`
+    : '';
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${heading}</title></head><body><h1>${heading}</h1>${cue}${note?.html || ''}</body></html>`;
+  return {
+    filename: `${name}.doc`,
+    html: `\ufeff${html}`,
+  };
+}
+
 export function sanitizeHtml(html) {
   const doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
   const holder = document.createElement('div');

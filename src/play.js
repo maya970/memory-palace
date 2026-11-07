@@ -15,12 +15,14 @@ import { loadSave, writeSave } from './storage.js';
 import { sfx } from './audio.js';
 import {
   createNote,
+  htmlFromDocx,
   isEmptyNote,
   normalizeNote,
   parseShelf,
   regionName,
   shelfKey,
   sortNotes,
+  wordFile,
 } from './notes.js';
 import { starterNotes as buildStarterNotes } from './palace.js';
 import { createEditor } from './editor.js';
@@ -31,7 +33,7 @@ import { buildBundle, bundleToSave } from './bundle.js';
 import { accountNeedsExport, clearWallets, loadWallets } from './wallets.js';
 import { t } from './i18n.js';
 import { createCommunity } from './community-ui.js';
-import { applySavedMods, dropNoteInRoom, hydrateMods } from './community.js';
+import { applySavedMods, dropNoteInRoom, hydrateMods, rememberPlace } from './community.js';
 import { applyLights, beginGraphics, currentGraphics, loadGraphics, saveGraphics } from './graphics.js';
 import { isHandheld, markDevice } from './device.js';
 import { WaterView } from './water.js';
@@ -277,10 +279,41 @@ const backup = createBackup(document.querySelector('#backup'), {
 
 const docs = createDocs(docsEl, {
   localNotes: () => sortNotes(notes),
+  beaconAt: () => beaconAt,
   onOpenLocal(note) {
     const pos = parseShelf(note.shelf);
     docs.close();
     if (pos) openShelf(pos.x, pos.y, pos.z);
+  },
+  onExportWord: exportWord,
+  async onImportWord(file, note) {
+    const result = await htmlFromDocx(file);
+    if (note) {
+      note.html = result.html;
+      note.updated = Date.now();
+      saveSoon();
+      return { note, skipped: result.skipped };
+    }
+    const created = createNote(null);
+    created.title = (file.name || 'Word').replace(/\.docx$/i, '').slice(0, 40);
+    created.html = result.html;
+    notes.push(created);
+    saveSoon();
+    return { note: created, skipped: result.skipped };
+  },
+  onBeacon(x, y, z, label) {
+    if (beaconHits(x, y, z)) {
+      clearBeacon();
+      toast('已经关掉标亮');
+      return false;
+    }
+    markBeacon(x, y, z, label);
+    toast('这格已经标亮，光柱会一直亮着。点左下角或按 V 走过去');
+    return true;
+  },
+  onGoto(x, y, z) {
+    docs.close();
+    gotoDrop(x, y, z);
   },
   onClose: closeDocs,
 });
@@ -810,7 +843,14 @@ function useAimed() {
   const spent = inventory.consumeSelected();
   if (spent?.noteId) bindShelfNote(spent.noteId, spot.x, spot.y, spot.z);
   sfx.place();
-  markBeacon(spot.x, spot.y, spot.z, BLOCKS[held]?.name || '刚放下的格子');
+  rememberPlace({
+    kind: 'block',
+    type: held,
+    title: BLOCKS[held]?.name || held,
+    x: spot.x,
+    y: spot.y,
+    z: spot.z,
+  });
   saveSoon();
 }
 
@@ -887,10 +927,7 @@ function saveWriteDrop() {
   keepDraft(note);
   const cell = dropNoteInRoom(world, notes, note);
   if (!cell) toast('头顶没有遮挡，不能投放。先进入一座有屋顶的宫殿。');
-  else {
-    markBeacon(cell.x, cell.y, cell.z, '随机存放');
-    toast(`已经放到 ${cell.x}, ${cell.y}, ${cell.z}。光柱是信标，点左下角或按 V 就能找到`);
-  }
+  else toast(`已经放到 ${cell.x}, ${cell.y}, ${cell.z}。可在 Esc → 全部文档 → 历史记录里标亮`);
   community.refresh();
   saveSoon();
   if (started) lock();
@@ -1038,11 +1075,8 @@ function persist() {
 }
 
 function exportWord(note) {
-  const name = (note.title || '笔记').replace(/[\\/:*?"<>|]/g, '').slice(0, 40) || '笔记';
-  const heading = escapeText(note.title || '未命名');
-  const cue = note.cue ? `<p><b>线索：</b>${escapeText(note.cue)}</p>` : '';
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${heading}</title></head><body><h1>${heading}</h1>${cue}${note.html || ''}</body></html>`;
-  download(`\ufeff${html}`, `${name}.doc`, 'application/msword');
+  const file = wordFile(note);
+  download(file.html, file.filename, 'application/msword');
 }
 
 function download(content, filename, type) {
@@ -1400,7 +1434,6 @@ function goToBeacon() {
 }
 
 function gotoDrop(x, y, z) {
-  markBeacon(x, y, z, '要找的格子');
   const look = { x: x + 0.5, y, z: z + 0.5, yaw: player.yaw, pitch: -0.12 };
   community.close();
   if (started) {

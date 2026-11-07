@@ -8,6 +8,7 @@ import { createNote, isEmptyNote, shelfKey } from './notes.js';
 const FURN_KEY = 'memory-palace-community-furniture';
 const PALACE_KEY = 'memory-palace-community-palaces';
 const DROP_KEY = 'memory-palace-note-drops';
+const PLACE_KEY = 'memory-palace-place-history';
 const MAX_PLACED = 40000;
 
 function readJson(key, fallback) {
@@ -325,6 +326,32 @@ export function rememberDrop(note, cell) {
 
 export function dropHistory() {
   return readJson(DROP_KEY, []);
+}
+
+export function rememberPlace(entry) {
+  const rows = readJson(PLACE_KEY, []);
+  rows.unshift({
+    kind: entry.kind || 'block',
+    type: entry.type || '',
+    title: entry.title || '',
+    cue: entry.cue || '',
+    id: entry.id || '',
+    x: entry.x,
+    y: entry.y,
+    z: entry.z,
+    at: Date.now(),
+  });
+  writeJson(PLACE_KEY, rows.slice(0, 80));
+}
+
+export function placeHistory() {
+  return readJson(PLACE_KEY, []);
+}
+
+export function combinedHistory() {
+  const notes = dropHistory().map((row) => ({ ...row, kind: row.kind || 'note' }));
+  const blocks = placeHistory();
+  return [...notes, ...blocks].sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 80);
 }
 
 export function makeLooseNote() {
