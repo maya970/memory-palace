@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { loadGraphics } from './graphics.js';
 
 export const WEATHERS = {
   clear: {
@@ -47,18 +48,24 @@ export const climate = {
 };
 
 export function makeSurface(map, transparent, type) {
+  const shared = {
+    map,
+    transparent,
+    alphaTest: transparent ? 0.15 : 0,
+    depthWrite: !transparent,
+    side: THREE.FrontSide,
+  };
+  if (loadGraphics().light === 'simple') {
+    return new THREE.MeshLambertMaterial(shared);
+  }
   const shiny = type === 'water' || type === 'ice' || type === 'glass' || type === 'gold' || type === 'iron' || type === 'diamond';
   const mat = new THREE.MeshStandardMaterial({
-    map,
+    ...shared,
     roughness: shiny ? 0.18 : type === 'grass' || type === 'sand' || type === 'snow' ? 0.92 : 0.7,
     metalness: type === 'gold' || type === 'iron' ? 0.65 : 0.04,
     envMapIntensity: 1,
     emissive: type === 'glowstone' ? new THREE.Color(0xffcc66) : 0x000000,
     emissiveIntensity: type === 'glowstone' ? 1.4 : 0,
-    transparent,
-    alphaTest: transparent ? 0.15 : 0,
-    depthWrite: !transparent,
-    side: THREE.FrontSide,
   });
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.uWet = climate.uWet;
@@ -73,14 +80,10 @@ export function makeSurface(map, transparent, type) {
         #endif
         wp = modelMatrix * wp;
         vWx = wp.xyz;
-        vWn = objectNormal;
-        #ifdef USE_INSTANCING
-          vWn = mat3(instanceMatrix) * vWn;
-        #endif
-        vWn = normalize(mat3(modelMatrix) * vWn);`);
+        vWn = normalize(mat3(modelMatrix) * objectNormal);`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vWx;\nvarying vec3 vWn;\nuniform float uWet;\nuniform float uSnow;\nuniform float uPuddle;')
-      .replace('#include <color_fragment>', `#include <color_fragment>
+      .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
         float up = smoothstep(0.22, 0.86, vWn.y);
         float wet = uWet * (0.35 + 0.65 * up);
         diffuseColor.rgb *= 1.0 - wet * 0.55;

@@ -320,6 +320,7 @@ document.querySelectorAll('[data-light]').forEach((button) => {
   button.addEventListener('click', () => {
     gfx = saveGraphics({ light: button.dataset.light });
     paintGraphics();
+    world.rebuildMeshes();
     applyLights(renderer, sunLight, world.meshes(), gfx);
     applyMood(lastIndoor);
   });
@@ -991,14 +992,19 @@ function openBackup() {
 function applyMood(indoor) {
   lamp.intensity = gfx.light !== 'simple' && indoor ? 1.35 : 0;
   if (gfx.light === 'simple') {
+    scene.environmentIntensity = 0;
     scene.background = new THREE.Color(0x8ec8ef);
     scene.fog = new THREE.Fog(0x8ec8ef, 52, 168);
+    hemi.color.set(0xffe6c4);
+    hemi.groundColor.set(0x3a2a22);
     hemi.intensity = 0.95;
+    sunLight.color.set(0xfff2d8);
     sunLight.intensity = 1.32;
     sun.visible = true;
     atmosphere.setWeather({ rain: 0, flakes: 0, bloom: 0.2, shafts: 0, wet: 0 }, false);
     return;
   }
+  scene.environmentIntensity = 0.95;
   setClimate(gfx.weather, { scene, hemi, sunLight, sun, atmosphere }, Boolean(indoor));
 }
 
